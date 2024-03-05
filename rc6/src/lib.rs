@@ -171,6 +171,9 @@ impl BlockBackend for RC6DecBackend {
 }
 
 fn key_expansion(key: &Array<u8, U16>) -> Array<u32, U44> {
+    const P32: u32 = 0xB7E15163;
+    const Q32: u32 = 0x9E3779B9;
+
     let c = 4;
     let b = 16;
     let w = 32;
@@ -182,10 +185,10 @@ fn key_expansion(key: &Array<u8, U16>) -> Array<u32, U44> {
     }
 
     let mut s: Array<u32, U44> = Array::from_fn(|_| 0u32);
-    s[0] = 0xB7E15163;
+    s[0] = P32;
 
     for i in 1..44 {
-        s[i] = s[i - 1].wrapping_add(0x9E3779B9);
+        s[i] = s[i - 1].wrapping_add(Q32);
     }
 
     let mut a = 0;
