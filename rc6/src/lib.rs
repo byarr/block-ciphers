@@ -77,20 +77,16 @@ impl BlockBackend for RC6EncBackend {
                 .rotate_left(5);
 
             a = (a.bitxor(t))
-                .rotate_left(u)
+                .rotate_left(u.bitand(0b11111))
                 .wrapping_add(self.expanded_key[2 * i]);
             c = (c.bitxor(u))
-                .rotate_left(t)
+                .rotate_left(t.bitand(0b11111))
                 .wrapping_add(self.expanded_key[2 * i + 1]);
 
             let ta = a;
-            let tb = b;
-            let tc = c;
-            let td = d;
-
-            a = tb;
-            b = tc;
-            c = td;
+            a = b;
+            b = c;
+            c = d;
             d = ta;
         }
         a = a.wrapping_add(self.expanded_key[42]);
@@ -177,7 +173,7 @@ fn key_expansion(key: &Array<u8, U16>) -> Array<u32, U44> {
     let u = w / 8;
 
     let mut l = [0u32; 4];
-    for i in (0..(b - 1)).rev() {
+    for i in (0..=(b - 1)).rev() {
         l[i / u] = (l[i / u] << 8) | (key[i] as u32);
     }
 
