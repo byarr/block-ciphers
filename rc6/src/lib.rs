@@ -18,6 +18,9 @@ use core::ops::{BitAnd, BitXor};
 // B - key length in bytes - 16
 // Start with rounds = 20, w =32
 
+// number of rounds
+const R: usize = 20;
+
 pub struct RC6 {
     key: Array<u8, U16>,
 }
@@ -68,7 +71,7 @@ impl BlockBackend for RC6EncBackend {
 
         b = b.wrapping_add(self.expanded_key[0]);
         d = d.wrapping_add(self.expanded_key[1]);
-        for i in 1..=20 {
+        for i in 1..=R {
             let t = b
                 .wrapping_mul(b.wrapping_mul(2).wrapping_add(1))
                 .rotate_left(5);
@@ -129,7 +132,7 @@ impl BlockBackend for RC6DecBackend {
         c = c.wrapping_sub(self.expanded_key[43]);
         a = a.wrapping_sub(self.expanded_key[42]);
 
-        for i in (1..=20).rev() {
+        for i in (1..=R).rev() {
             {
                 let temp_a = a;
                 a = d;
@@ -166,7 +169,6 @@ impl BlockBackend for RC6DecBackend {
 }
 
 fn key_expansion(key: &Array<u8, U16>) -> Array<u32, U44> {
-    let _r = 20;
     let c = 4;
     let b = 16;
     let w = 32;
