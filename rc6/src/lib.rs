@@ -5,10 +5,11 @@ use cipher::consts::{U1, U16, U44};
 use cipher::inout::InOut;
 
 use cipher::{
-    Block, BlockBackend, BlockCipher, BlockCipherDecrypt, BlockCipherEncrypt, BlockClosure,
-    BlockSizeUser, Key, KeyInit, KeySizeUser, ParBlocksSizeUser,
+    AlgorithmName, Block, BlockBackend, BlockCipher, BlockCipherDecrypt, BlockCipherEncrypt,
+    BlockClosure, BlockSizeUser, Key, KeyInit, KeySizeUser, ParBlocksSizeUser,
 };
 use core::cmp::max;
+use core::fmt::Formatter;
 
 use core::ops::{BitAnd, BitXor};
 
@@ -41,6 +42,12 @@ impl KeyInit for RC6 {
     fn new(key: &Key<Self>) -> Self {
         let expanded_key = key_expansion(key);
         Self { key: expanded_key }
+    }
+}
+
+impl AlgorithmName for RC6 {
+    fn write_alg_name(f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "RC6 32/20/16")
     }
 }
 
