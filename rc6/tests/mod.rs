@@ -1,7 +1,7 @@
 extern crate rc6;
 
 use cipher::array::Array;
-use cipher::{BlockCipherEncrypt, KeyInit};
+use cipher::{BlockCipherDecrypt, BlockCipherEncrypt, KeyInit};
 use rc6::RC6;
 #[test]
 fn test_vector_1() {
@@ -13,13 +13,13 @@ fn test_vector_1() {
         0x1e,
     ];
 
-    let mut block = Array::from_slice(&plain_text).clone();
+    let mut block = *Array::from_slice(&plain_text);
 
     let rc6 = RC6::new_from_slice(&key).expect("Failed to create RC6");
     rc6.encrypt_block(&mut block);
 
     assert_eq!(cipher, block[..]);
 
-    // rc6.decrypt_block(&mut block);
-    // assert_eq!(plain_text, block[..]);
+    rc6.decrypt_block(&mut block);
+    assert_eq!(plain_text, block[..]);
 }

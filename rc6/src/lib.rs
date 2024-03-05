@@ -5,8 +5,8 @@ use cipher::consts::{U1, U16, U44};
 use cipher::inout::InOut;
 
 use cipher::{
-    Block, BlockBackend, BlockCipher, BlockCipherEncrypt, BlockClosure, BlockSizeUser,
-    Key, KeyInit, KeySizeUser, ParBlocksSizeUser,
+    Block, BlockBackend, BlockCipher, BlockCipherDecrypt, BlockCipherEncrypt, BlockClosure,
+    BlockSizeUser, Key, KeyInit, KeySizeUser, ParBlocksSizeUser,
 };
 use core::cmp::max;
 
@@ -95,6 +95,72 @@ impl BlockBackend for RC6EncBackend {
         }
         a = a.wrapping_add(self.expanded_key[42]);
         c = c.wrapping_add(self.expanded_key[43]);
+
+        block.get_out()[0..4].copy_from_slice(&a.to_le_bytes());
+        block.get_out()[4..8].copy_from_slice(&b.to_le_bytes());
+        block.get_out()[8..12].copy_from_slice(&c.to_le_bytes());
+        block.get_out()[12..16].copy_from_slice(&d.to_le_bytes());
+    }
+}
+
+impl BlockCipherDecrypt for RC6 {
+    fn decrypt_with_backend(&self, f: impl BlockClosure<BlockSize = Self::BlockSize>) {
+        f.call(&mut RC6DecBackend {
+            expanded_key: key_expansion(&self.key),
+        })
+    }
+}
+
+struct RC6DecBackend {
+    expanded_key: Array<u32, U44>,
+}
+
+impl ParBlocksSizeUser for RC6DecBackend {
+    type ParBlocksSize = U1;
+}
+
+impl BlockSizeUser for RC6DecBackend {
+    type BlockSize = U16;
+}
+
+impl BlockBackend for RC6DecBackend {
+    fn proc_block(&mut self, mut block: InOut<'_, '_, Block<Self>>) {
+        let mut a = u32::from_le_bytes(block.get_in()[..4].try_into().unwrap());
+        let mut b = u32::from_le_bytes(block.get_in()[4..8].try_into().unwrap());
+        let mut c = u32::from_le_bytes(block.get_in()[8..12].try_into().unwrap());
+        let mut d = u32::from_le_bytes(block.get_in()[12..16].try_into().unwrap());
+
+        c = c.wrapping_sub(self.expanded_key[43]);
+        a = a.wrapping_sub(self.expanded_key[42]);
+
+        for i in (1..=20).rev() {
+            {
+                let temp_a = a;
+                a = d;
+                d = c;
+                c = b;
+                b = temp_a;
+            }
+
+            let u = d
+                .wrapping_mul(d.wrapping_mul(2).wrapping_add(1))
+                .rotate_left(5);
+            let t = b
+                .wrapping_mul(b.wrapping_mul(2).wrapping_add(1))
+                .rotate_left(5);
+
+            c = c
+                .wrapping_sub(self.expanded_key[2 * i + 1])
+                .rotate_right(t & 0b11111)
+                .bitxor(u);
+            a = a
+                .wrapping_sub(self.expanded_key[2 * i])
+                .rotate_right(u & 0b11111)
+                .bitxor(t);
+        }
+
+        d = d.wrapping_sub(self.expanded_key[1]);
+        b = b.wrapping_sub(self.expanded_key[0]);
 
         block.get_out()[0..4].copy_from_slice(&a.to_le_bytes());
         block.get_out()[4..8].copy_from_slice(&b.to_le_bytes());
