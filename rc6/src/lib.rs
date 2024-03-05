@@ -21,6 +21,8 @@ use core::ops::{BitAnd, BitXor};
 // number of rounds
 const R: usize = 20;
 
+const LG_W: u32 = 5;
+
 pub struct RC6 {
     key: Array<u8, U16>,
 }
@@ -74,10 +76,10 @@ impl BlockBackend for RC6EncBackend {
         for i in 1..=R {
             let t = b
                 .wrapping_mul(b.wrapping_mul(2).wrapping_add(1))
-                .rotate_left(5);
+                .rotate_left(LG_W);
             let u = d
                 .wrapping_mul(d.wrapping_mul(2).wrapping_add(1))
-                .rotate_left(5);
+                .rotate_left(LG_W);
 
             a = (a.bitxor(t))
                 .rotate_left(u.bitand(0b11111))
@@ -143,10 +145,10 @@ impl BlockBackend for RC6DecBackend {
 
             let u = d
                 .wrapping_mul(d.wrapping_mul(2).wrapping_add(1))
-                .rotate_left(5);
+                .rotate_left(LG_W);
             let t = b
                 .wrapping_mul(b.wrapping_mul(2).wrapping_add(1))
-                .rotate_left(5);
+                .rotate_left(LG_W);
 
             c = c
                 .wrapping_sub(self.expanded_key[2 * i + 1])
