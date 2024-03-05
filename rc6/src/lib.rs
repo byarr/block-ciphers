@@ -24,7 +24,7 @@ const R: usize = 20;
 const LG_W: u32 = 5;
 
 pub struct RC6 {
-    key: Array<u8, U16>,
+    key: Array<u32, U44>
 }
 
 impl BlockCipher for RC6 {}
@@ -39,15 +39,15 @@ impl BlockSizeUser for RC6 {
 impl KeyInit for RC6 {
     #[inline]
     fn new(key: &Key<Self>) -> Self {
-        key_expansion(key);
-        Self { key: *key }
+        let expanded_key = key_expansion(key);
+        Self { key: expanded_key }
     }
 }
 
 impl BlockCipherEncrypt for RC6 {
     fn encrypt_with_backend(&self, f: impl BlockClosure<BlockSize = Self::BlockSize>) {
         f.call(&mut RC6EncBackend {
-            expanded_key: key_expansion(&self.key),
+            expanded_key: self.key,
         })
     }
 }
@@ -107,7 +107,7 @@ impl BlockBackend for RC6EncBackend {
 impl BlockCipherDecrypt for RC6 {
     fn decrypt_with_backend(&self, f: impl BlockClosure<BlockSize = Self::BlockSize>) {
         f.call(&mut RC6DecBackend {
-            expanded_key: key_expansion(&self.key),
+            expanded_key: self.key,
         })
     }
 }
