@@ -24,7 +24,7 @@ const R: usize = 20;
 const LG_W: u32 = 5;
 
 pub struct RC6 {
-    key: Array<u32, U44>
+    key: Array<u32, U44>,
 }
 
 impl BlockCipher for RC6 {}
