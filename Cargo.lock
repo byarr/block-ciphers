@@ -194,6 +194,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "rc6"
+version = "0.0.1-pre"
+dependencies = [
+ "cipher",
+]
+
+[[package]]
 name = "serpent"
 version = "0.6.0-pre"
 dependencies = [
