@@ -4,10 +4,7 @@ use cipher::array::Array;
 use cipher::consts::{U1, U16, U44};
 use cipher::inout::InOut;
 
-use cipher::{
-    AlgorithmName, Block, BlockBackend, BlockCipher, BlockCipherDecrypt, BlockCipherEncrypt,
-    BlockClosure, BlockSizeUser, Key, KeyInit, KeySizeUser, ParBlocksSizeUser,
-};
+use cipher::{AlgorithmName, Block, BlockBackend, BlockCipher, BlockCipherDecrypt, BlockCipherEncrypt, BlockClosure, BlockSizeUser, Key, KeyInit, KeySizeUser, ParBlocksSizeUser, Unsigned};
 use core::cmp::max;
 use core::fmt::Formatter;
 
@@ -17,12 +14,15 @@ use core::ops::{BitAnd, BitXor};
 // W - word size (bits) - 32
 // R - number of rounds - 20
 // B - key length in bytes - 16
-// Start with rounds = 20, w =32
+
+// word size in bits
+const W: usize = 32;
+const LG_W: u32 = 5;
+
 
 // number of rounds
 const R: usize = 20;
 
-const LG_W: u32 = 5;
 
 pub struct RC6 {
     key: Array<u32, U44>,
@@ -101,8 +101,8 @@ impl BlockBackend for RC6EncBackend {
             c = d;
             d = ta;
         }
-        a = a.wrapping_add(self.expanded_key[42]);
-        c = c.wrapping_add(self.expanded_key[43]);
+        a = a.wrapping_add(self.expanded_key[2*R+2]);
+        c = c.wrapping_add(self.expanded_key[2*R+3]);
 
         block.get_out()[0..4].copy_from_slice(&a.to_le_bytes());
         block.get_out()[4..8].copy_from_slice(&b.to_le_bytes());
@@ -138,8 +138,8 @@ impl BlockBackend for RC6DecBackend {
         let mut c = u32::from_le_bytes(block.get_in()[8..12].try_into().unwrap());
         let mut d = u32::from_le_bytes(block.get_in()[12..16].try_into().unwrap());
 
-        c = c.wrapping_sub(self.expanded_key[43]);
-        a = a.wrapping_sub(self.expanded_key[42]);
+        c = c.wrapping_sub(self.expanded_key[2*R+3]);
+        a = a.wrapping_sub(self.expanded_key[2*R+2]);
 
         for i in (1..=R).rev() {
             {
@@ -178,13 +178,14 @@ impl BlockBackend for RC6DecBackend {
 }
 
 fn key_expansion(key: &Array<u8, U16>) -> Array<u32, U44> {
+
+    assert_eq!(2*R+4, U44::to_usize());
     const P32: u32 = 0xB7E15163;
     const Q32: u32 = 0x9E3779B9;
 
     let c = 4;
     let b = 16;
-    let w = 32;
-    let u = w / 8;
+    let u = W / 8;
 
     let mut l = [0u32; 4];
     for i in (0..=(b - 1)).rev() {
@@ -194,7 +195,7 @@ fn key_expansion(key: &Array<u8, U16>) -> Array<u32, U44> {
     let mut s: Array<u32, U44> = Array::from_fn(|_| 0u32);
     s[0] = P32;
 
-    for i in 1..44 {
+    for i in 1..s.len() {
         s[i] = s[i - 1].wrapping_add(Q32);
     }
 
