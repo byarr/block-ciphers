@@ -17,7 +17,8 @@ use core::cmp::max;
 use core::fmt::Formatter;
 use core::marker::PhantomData;
 
-use core::ops::{BitAnd, BitXor};
+use cipher::zeroize::DefaultIsZeroes;
+use core::ops::{BitAnd, BitOr, BitXor, Shl};
 
 // This should be parameterised but hard code for now
 // W - word size (bits) - 32
@@ -187,41 +188,83 @@ impl BlockBackend for RC6DecBackend {
     }
 }
 
-type Word = u32;
-fn key_expansion<B: ArraySize>(key: &Array<u8, B>) -> Array<Word, U44> {
+trait Word:
+    Shl<Output = Self>
+    + From<u8>
+    + BitOr<Self, Output = Self>
+    + BitAnd<Self, Output = Self>
+    + DefaultIsZeroes
+{
+    const P: Self;
+    const Q: Self;
+
+    const BITS: u32;
+
+    fn wrapping_add(self, rhs: Self) -> Self;
+
+    fn wrapping_mul(self, rhs: Self) -> Self;
+
+    fn rotate_left(self, rhs: Self) -> Self;
+}
+
+macro_rules! impl_word_for_primitive {
+    ($primitive:ident, $P:expr, $Q:expr) => {
+        impl Word for $primitive {
+            const P: Self = $P;
+            const Q: Self = $Q;
+
+            const BITS: u32 = $primitive::BITS;
+
+            fn wrapping_add(self, rhs: Self) -> Self {
+                self.wrapping_add(rhs)
+            }
+
+            fn wrapping_mul(self, rhs: Self) -> Self {
+                self.wrapping_mul(rhs)
+            }
+
+            fn rotate_left(self, rhs: Self) -> Self {
+                self.rotate_left(rhs)
+            }
+        }
+    };
+}
+
+impl_word_for_primitive!(u32, 0xB7E15163, 0x9E3779B9);
+
+fn key_expansion<W: Word, B: ArraySize>(key: &Array<u8, B>) -> Array<W, U44> {
     // output size only depends on the number of rounds
     assert_eq!(2 * R + 4, U44::to_usize());
-    const P32: Word = 0xB7E15163;
-    const Q32: Word = 0x9E3779B9;
 
     // b bytes into c words
-    let bytes_per_word = Word::BITS as usize / 8;
+    let bytes_per_word = W::BITS as usize / 8;
     let c = (B::to_usize() + bytes_per_word - 1) / bytes_per_word;
 
     let b = B::to_usize();
 
-    let mut l: Vec<Word> = vec![0; c];
+    let mut l: Vec<W> = vec![W::default(); c];
     for i in (0..=(b - 1)).rev() {
-        l[i / bytes_per_word] = (l[i / bytes_per_word] << 8) | (key[i] as u32);
+        l[i / bytes_per_word] = (l[i / bytes_per_word] << 8.into()) | (W::from(key[i]));
     }
 
-    let mut s: Array<Word, U44> = Array::from_fn(|_| 0u32);
-    s[0] = P32;
+    let mut s: Array<W, U44> = Array::from_fn(|_| W::default());
+    s[0] = W::P;
 
     for i in 1..s.len() {
-        s[i] = s[i - 1].wrapping_add(Q32);
+        s[i] = s[i - 1].wrapping_add(W::Q);
     }
 
-    let mut a = 0;
-    let mut b = 0;
+    let mut a = W::default();
+    let mut b = W::default();
     let mut i = 0;
     let mut j = 0;
 
     let v = 3 * max(c, 2 * R + 4);
     for _s in 1..=v {
-        a = s[i].wrapping_add(a).wrapping_add(b).rotate_left(3);
+        a = s[i].wrapping_add(a).wrapping_add(b).rotate_left(3.into());
         s[i] = a;
-        b = (l[j].wrapping_add(a).wrapping_add(b)).rotate_left(a.wrapping_add(b).bitand(0b11111));
+        b = (l[j].wrapping_add(a).wrapping_add(b))
+            .rotate_left(a.wrapping_add(b).bitand(0b11111.into()));
         l[j] = b;
         i = (i + 1) % (2 * R + 4);
         j = (j + 1) % c;
