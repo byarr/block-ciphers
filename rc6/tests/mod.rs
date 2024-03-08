@@ -1,55 +1,75 @@
 extern crate rc6;
 
 use cipher::array::Array;
+use cipher::consts::{U16, U24, U32};
 use cipher::{BlockCipherDecrypt, BlockCipherEncrypt, KeyInit};
+use hex_literal::hex;
 use rc6::RC6;
 
-// test vetors taken from https://web.archive.org/web/20181223080309/http://people.csail.mit.edu/rivest/rc6.pdf
+macro_rules! rc6_test_case {
+    ($name:ident, $key_size:ident, $plain:expr, $key:expr, $cipher:expr) => {
+        #[test]
+        fn $name() {
+            let plain_text = hex!($plain);
+            let key = hex!($key);
+            let cipher = hex!($cipher);
+            let mut block = *Array::from_slice(&plain_text);
 
-#[test]
-fn test_vector_1() {
-    let plain_text = [0u8; 16];
-    let key = [0u8; 16];
+            let rc6 = <RC6<$key_size> as KeyInit>::new_from_slice(&key).unwrap();
+            rc6.encrypt_block(&mut block);
 
-    let cipher = [
-        0x8f, 0xc3, 0xa5, 0x36, 0x56, 0xb1, 0xf7, 0x78, 0xc1, 0x29, 0xdf, 0x4e, 0x98, 0x48, 0xa4,
-        0x1e,
-    ];
+            assert_eq!(cipher, block[..]);
 
-    let mut block = *Array::from_slice(&plain_text);
-
-    let rc6 = RC6::new_from_slice(&key).expect("Failed to create RC6");
-    rc6.encrypt_block(&mut block);
-
-    assert_eq!(cipher, block[..]);
-
-    rc6.decrypt_block(&mut block);
-    assert_eq!(plain_text, block[..]);
+            rc6.decrypt_block(&mut block);
+            assert_eq!(plain_text, block[..]);
+        }
+    };
 }
 
-#[test]
-fn test_vector_2() {
-    let plain_text = [
-        0x02, 0x13, 0x24, 0x35, 0x46, 0x57, 0x68, 0x79, 0x8a, 0x9b, 0xac, 0xbd, 0xce, 0xdf, 0xe0,
-        0xf1,
-    ];
-    let key = [
-        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x12, 0x23, 0x34, 0x45, 0x56, 0x67,
-        0x78,
-    ];
+// test vectors taken from https://web.archive.org/web/20181223080309/http://people.csail.mit.edu/rivest/rc6.pdf
+rc6_test_case!(
+    vector_1,
+    U16,
+    "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+    "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+    "8f c3 a5 36 56 b1 f7 78 c1 29 df 4e 98 48 a4 1e"
+);
+rc6_test_case!(
+    vector_2,
+    U16,
+    "02 13 24 35 46 57 68 79 8a 9b ac bd ce df e0 f1",
+    "01 23 45 67 89 ab cd ef 01 12 23 34 45 56 67 78",
+    "52 4e 19 2f 47 15 c6 23 1f 51 f6 36 7e a4 3f 18"
+);
 
-    let cipher = [
-        0x52, 0x4e, 0x19, 0x2f, 0x47, 0x15, 0xc6, 0x23, 0x1f, 0x51, 0xf6, 0x36, 0x7e, 0xa4, 0x3f,
-        0x18,
-    ];
+rc6_test_case!(
+    vector_3,
+    U24,
+    "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+    "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+    "6c d6 1b cb 19 0b 30 38 4e 8a 3f 16 86 90 ae 82"
+);
 
-    let mut block = *Array::from_slice(&plain_text);
+rc6_test_case!(
+    vector_4,
+    U24,
+    "02 13 24 35 46 57 68 79 8a 9b ac bd ce df e0 f1",
+    "01 23 45 67 89 ab cd ef 01 12 23 34 45 56 67 78 89 9a ab bc cd de ef f0",
+    "68 83 29 d0 19 e5 05 04 1e 52 e9 2a f9 52 91 d4"
+);
 
-    let rc6 = RC6::new_from_slice(&key).expect("Failed to create RC6");
-    rc6.encrypt_block(&mut block);
+rc6_test_case!(
+    vector_5,
+    U32,
+    "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+    "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+    "8f 5f bd 05 10 d1 5f a8 93 fa 3f da 6e 85 7e c2"
+);
 
-    assert_eq!(cipher, block[..]);
-
-    rc6.decrypt_block(&mut block);
-    assert_eq!(plain_text, block[..]);
-}
+rc6_test_case!(
+    vector_6,
+    U32,
+    "02 13 24 35 46 57 68 79 8a 9b ac bd ce df e0 f1",
+    "01 23 45 67 89 ab cd ef 01 12 23 34 45 56 67 78 89 9a ab bc cd de ef f0 10 32 54 76 98 ba dc fe",
+    "c8 24 18 16 f0 d7 e4 89 20 ad 16 a1 67 4e 5d 48"
+);
