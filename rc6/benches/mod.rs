@@ -18,7 +18,6 @@ block_decryptor_bench!(
     rc6_32_20_16_decrypt_blocks,
 );
 
-
 block_encryptor_bench!(
     Key: RC6<U32>,
     rc6_32_20_32_encrypt_block,
