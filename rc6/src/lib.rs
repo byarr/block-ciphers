@@ -4,7 +4,7 @@ use cipher::array::Array;
 use cipher::consts::{U1, U16, U44};
 use cipher::inout::InOut;
 
-use cipher::{AlgorithmName, Block, BlockBackend, BlockCipher, BlockCipherDecrypt, BlockCipherEncrypt, BlockClosure, BlockSizeUser, Key, KeyInit, KeySizeUser, ParBlocksSizeUser, Unsigned};
+use cipher::{AlgorithmName, ArraySize, Block, BlockBackend, BlockCipher, BlockCipherDecrypt, BlockCipherEncrypt, BlockClosure, BlockSizeUser, Key, KeyInit, KeySizeUser, ParBlocksSizeUser, Unsigned};
 use core::cmp::max;
 use core::fmt::Formatter;
 
@@ -177,22 +177,27 @@ impl BlockBackend for RC6DecBackend {
     }
 }
 
-fn key_expansion(key: &Array<u8, U16>) -> Array<u32, U44> {
+type Word = u32;
+fn key_expansion<B: ArraySize>(key: &Array<u8, B>) -> Array<Word, U44> {
 
+    // output size only depends on the number of rounds
     assert_eq!(2*R+4, U44::to_usize());
-    const P32: u32 = 0xB7E15163;
-    const Q32: u32 = 0x9E3779B9;
+    const P32: Word = 0xB7E15163;
+    const Q32: Word = 0x9E3779B9;
 
-    let c = 4;
+    // b bytes into c words
+    const C: usize = 4;
+    assert_eq!(C, (B::to_usize() * u8::BITS as usize) / Word::BITS as usize);
+
     let b = 16;
     let u = W / 8;
 
-    let mut l = [0u32; 4];
+    let mut l: [Word; C] = [0u32; C];
     for i in (0..=(b - 1)).rev() {
         l[i / u] = (l[i / u] << 8) | (key[i] as u32);
     }
 
-    let mut s: Array<u32, U44> = Array::from_fn(|_| 0u32);
+    let mut s: Array<Word, U44> = Array::from_fn(|_| 0u32);
     s[0] = P32;
 
     for i in 1..s.len() {
@@ -204,14 +209,14 @@ fn key_expansion(key: &Array<u8, U16>) -> Array<u32, U44> {
     let mut i = 0;
     let mut j = 0;
 
-    let v = 3 * max(c, 44);
+    let v = 3 * max(C, 2*R+4);
     for _s in 1..=v {
         a = s[i].wrapping_add(a).wrapping_add(b).rotate_left(3);
         s[i] = a;
         b = (l[j].wrapping_add(a).wrapping_add(b)).rotate_left(a.wrapping_add(b).bitand(0b11111));
         l[j] = b;
-        i = (i + 1) % 44;
-        j = (j + 1) % c;
+        i = (i + 1) % (2*R+4);
+        j = (j + 1) % C;
     }
 
     s
