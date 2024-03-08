@@ -198,6 +198,7 @@ name = "rc6"
 version = "0.0.1-pre"
 dependencies = [
  "cipher",
+ "hex-literal 0.4.1",
 ]
 
 [[package]]
