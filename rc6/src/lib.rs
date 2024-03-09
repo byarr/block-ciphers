@@ -5,7 +5,7 @@ extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
 use cipher::array::Array;
-use cipher::consts::{U1, U16, U44};
+use cipher::consts::{U1, U16, U4, U44};
 use cipher::inout::InOut;
 
 use cipher::{
@@ -195,6 +195,7 @@ trait Word:
     + BitAnd<Self, Output = Self>
     + DefaultIsZeroes
 {
+    type Bytes: ArraySize;
     const P: Self;
     const Q: Self;
 
@@ -208,8 +209,9 @@ trait Word:
 }
 
 macro_rules! impl_word_for_primitive {
-    ($primitive:ident, $P:expr, $Q:expr) => {
+    ($primitive:ident, $bytes:ty, $P:expr, $Q:expr) => {
         impl Word for $primitive {
+            type Bytes = $bytes;
             const P: Self = $P;
             const Q: Self = $Q;
 
@@ -230,7 +232,7 @@ macro_rules! impl_word_for_primitive {
     };
 }
 
-impl_word_for_primitive!(u32, 0xB7E15163, 0x9E3779B9);
+impl_word_for_primitive!(u32, U4, 0xB7E15163, 0x9E3779B9);
 
 fn key_expansion<W: Word, B: ArraySize>(key: &Array<u8, B>) -> Array<W, U44> {
     // output size only depends on the number of rounds
