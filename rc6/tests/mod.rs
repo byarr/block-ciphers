@@ -15,7 +15,7 @@ macro_rules! rc6_test_case {
             let cipher = hex!($cipher);
             let mut block = *Array::from_slice(&plain_text);
 
-            let rc6 = <RC6<$key_size> as KeyInit>::new_from_slice(&key).unwrap();
+            let rc6 = <RC6<u32, $key_size> as KeyInit>::new_from_slice(&key).unwrap();
             rc6.encrypt_block(&mut block);
 
             assert_eq!(cipher, block[..]);
