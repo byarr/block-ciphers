@@ -206,6 +206,9 @@ trait Word:
     fn wrapping_mul(self, rhs: Self) -> Self;
 
     fn rotate_left(self, rhs: Self) -> Self;
+
+    fn from_le_bytes(bytes: &Array<u8, Self::Bytes>) -> Self;
+    fn to_le_bytes(self) -> Array<u8, Self::Bytes>;
 }
 
 macro_rules! impl_word_for_primitive {
@@ -228,6 +231,15 @@ macro_rules! impl_word_for_primitive {
             fn rotate_left(self, rhs: Self) -> Self {
                 self.rotate_left(rhs)
             }
+
+            fn from_le_bytes(bytes: &Array<u8, Self::Bytes>) -> Self {
+                $primitive::from_le_bytes(bytes.as_slice().try_into().unwrap())
+            }
+
+            fn to_le_bytes(self) -> Array<u8, Self::Bytes> {
+                $primitive::to_le_bytes(self).into()
+            }
+
         }
     };
 }
