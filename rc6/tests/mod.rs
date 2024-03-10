@@ -1,13 +1,13 @@
 extern crate rc6;
 
 use cipher::array::Array;
-use cipher::consts::{U16, U24, U32};
+use cipher::consts::{U16, U20, U24, U32};
 use cipher::{BlockCipherDecrypt, BlockCipherEncrypt, KeyInit};
 use hex_literal::hex;
 use rc6::RC6;
 
 macro_rules! rc6_test_case {
-    ($name:ident, $key_size:ident, $plain:expr, $key:expr, $cipher:expr) => {
+    ($name:ident, $rounds:ident, $key_size:ident, $plain:expr, $key:expr, $cipher:expr) => {
         #[test]
         fn $name() {
             let plain_text = hex!($plain);
@@ -15,7 +15,7 @@ macro_rules! rc6_test_case {
             let cipher = hex!($cipher);
             let mut block = *Array::from_slice(&plain_text);
 
-            let rc6 = <RC6<u32, $key_size> as KeyInit>::new_from_slice(&key).unwrap();
+            let rc6 = <RC6<u32, $rounds, $key_size> as KeyInit>::new_from_slice(&key).unwrap();
             rc6.encrypt_block(&mut block);
 
             assert_eq!(cipher, block[..]);
@@ -29,6 +29,7 @@ macro_rules! rc6_test_case {
 // test vectors taken from https://web.archive.org/web/20181223080309/http://people.csail.mit.edu/rivest/rc6.pdf
 rc6_test_case!(
     vector_1,
+    U20,
     U16,
     "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
     "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
@@ -36,6 +37,7 @@ rc6_test_case!(
 );
 rc6_test_case!(
     vector_2,
+    U20,
     U16,
     "02 13 24 35 46 57 68 79 8a 9b ac bd ce df e0 f1",
     "01 23 45 67 89 ab cd ef 01 12 23 34 45 56 67 78",
@@ -44,6 +46,7 @@ rc6_test_case!(
 
 rc6_test_case!(
     vector_3,
+    U20,
     U24,
     "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
     "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
@@ -52,6 +55,7 @@ rc6_test_case!(
 
 rc6_test_case!(
     vector_4,
+    U20,
     U24,
     "02 13 24 35 46 57 68 79 8a 9b ac bd ce df e0 f1",
     "01 23 45 67 89 ab cd ef 01 12 23 34 45 56 67 78 89 9a ab bc cd de ef f0",
@@ -60,6 +64,7 @@ rc6_test_case!(
 
 rc6_test_case!(
     vector_5,
+        U20,
     U32,
     "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
     "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
@@ -68,8 +73,19 @@ rc6_test_case!(
 
 rc6_test_case!(
     vector_6,
+        U20,
     U32,
     "02 13 24 35 46 57 68 79 8a 9b ac bd ce df e0 f1",
     "01 23 45 67 89 ab cd ef 01 12 23 34 45 56 67 78 89 9a ab bc cd de ef f0 10 32 54 76 98 ba dc fe",
     "c8 24 18 16 f0 d7 e4 89 20 ad 16 a1 67 4e 5d 48"
+);
+
+
+rc6_test_case!(
+    RC6_32_20_16,
+        U20,
+    U16,
+    "000102030405060708090A0B0C0D0E0F",
+    "000102030405060708090A0B0C0D0E0F",
+    "3A96F9C7F6755CFE46F00E3DCD5D2A3C"
 );

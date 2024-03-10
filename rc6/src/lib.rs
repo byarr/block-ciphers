@@ -5,7 +5,7 @@ extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
 use cipher::array::Array;
-use cipher::consts::{U1, U16, U4, U44};
+use cipher::consts::{U1, U16, U2, U4, U44};
 use cipher::inout::InOut;
 
 use cipher::{
@@ -17,36 +17,66 @@ use core::cmp::max;
 use core::fmt::Formatter;
 use core::marker::PhantomData;
 
+use cipher::typenum::{Prod, Sum};
 use cipher::zeroize::DefaultIsZeroes;
-use core::ops::{BitAnd, BitOr, BitXor, Shl};
+use core::ops::{Add, BitAnd, BitOr, BitXor, Mul, Shl};
+
+// for r rounds we need 2 * r + 4 e.g. 20 rounds is 44 round keys
+pub type ExpandedKeyTableSize<R> = Sum<Prod<R, U2>, U4>;
+pub type ExpandedKeyTable<W, R> = Array<W, ExpandedKeyTableSize<R>>;
 
 // This should be parameterised but hard code for now
 // W - word size (bits) - 32
 // R - number of rounds - 20
 // B - key length in bytes - 16
 
-
 // number of rounds
 const R: usize = 20;
 
-pub struct RC6<W:Word, B: ArraySize> {
-    key: Array<W, U44>,
+pub struct RC6<W: Word, R: ArraySize, B: ArraySize>
+where
+    R: Mul<U2>,
+    Prod<R, U2>: Add<U4>,
+    ExpandedKeyTableSize<R>: ArraySize,
+{
+    key: ExpandedKeyTable<W, R>,
     key_size: PhantomData<B>,
 }
 
-impl<W:Word, B: ArraySize> BlockCipher for RC6<W, B> {}
+impl<W: Word, R: ArraySize, B: ArraySize> BlockCipher for RC6<W, R, B>
+where
+    R: Mul<U2>,
+    Prod<R, U2>: Add<U4>,
+    ExpandedKeyTableSize<R>: ArraySize,
+{
+}
 
-impl<W:Word, B: ArraySize> KeySizeUser for RC6<W, B> {
+impl<W: Word, R: ArraySize, B: ArraySize> KeySizeUser for RC6<W, R, B>
+where
+    R: Mul<U2>,
+    Prod<R, U2>: Add<U4>,
+    ExpandedKeyTableSize<R>: ArraySize,
+{
     type KeySize = B;
 }
 
-impl<W:Word, B: ArraySize> BlockSizeUser for RC6<W, B> {
+impl<W: Word, R: ArraySize, B: ArraySize> BlockSizeUser for RC6<W, R, B>
+where
+    R: Mul<U2>,
+    Prod<R, U2>: Add<U4>,
+    ExpandedKeyTableSize<R>: ArraySize,
+{
     type BlockSize = U16; // TODO
 }
-impl<W:Word, B: ArraySize> KeyInit for RC6<W, B> {
+impl<W: Word, R: ArraySize, B: ArraySize> KeyInit for RC6<W, R, B>
+where
+    R: Mul<U2>,
+    Prod<R, U2>: Add<U4>,
+    ExpandedKeyTableSize<R>: ArraySize,
+{
     #[inline]
     fn new(key: &Key<Self>) -> Self {
-        let expanded_key = key_expansion(key);
+        let expanded_key = key_expansion::<W, R, B>(key);
         Self {
             key: expanded_key,
             key_size: PhantomData,
@@ -54,33 +84,64 @@ impl<W:Word, B: ArraySize> KeyInit for RC6<W, B> {
     }
 }
 
-impl<W: Word, B: ArraySize> AlgorithmName for RC6<W, B> {
+impl<W: Word, R: ArraySize, B: ArraySize> AlgorithmName for RC6<W, R, B>
+where
+    R: Mul<U2>,
+    Prod<R, U2>: Add<U4>,
+    ExpandedKeyTableSize<R>: ArraySize,
+{
     fn write_alg_name(f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "RC6 {}/20/{}", W::Bytes::to_u8(), B::U8)
     }
 }
 
-impl<W: Word, B: ArraySize> BlockCipherEncrypt for RC6<W, B> {
+impl<W: Word, R: ArraySize, B: ArraySize> BlockCipherEncrypt for RC6<W, R, B>
+where
+    R: Mul<U2>,
+    Prod<R, U2>: Add<U4>,
+    ExpandedKeyTableSize<R>: ArraySize,
+{
     fn encrypt_with_backend(&self, f: impl BlockClosure<BlockSize = Self::BlockSize>) {
-        f.call(&mut RC6EncBackend {
-            expanded_key: self.key,
-        })
+        let mut backend: RC6EncBackend<W, R> = RC6EncBackend {
+            expanded_key: self.key.clone(),
+        };
+        f.call(&mut backend)
     }
 }
 
-struct RC6EncBackend<W: Word> {
-    expanded_key: Array<W, U44>,
+struct RC6EncBackend<W: Word, R: ArraySize>
+where
+    R: Mul<U2>,
+    Prod<R, U2>: Add<U4>,
+    ExpandedKeyTableSize<R>: ArraySize,
+{
+    expanded_key: ExpandedKeyTable<W, R>,
 }
 
-impl <W: Word> ParBlocksSizeUser for RC6EncBackend<W> {
+impl<W: Word, R: ArraySize> ParBlocksSizeUser for RC6EncBackend<W, R>
+where
+    R: Mul<U2>,
+    Prod<R, U2>: Add<U4>,
+    ExpandedKeyTableSize<R>: ArraySize,
+{
     type ParBlocksSize = U1;
 }
 
-impl <W: Word> BlockSizeUser for RC6EncBackend<W> {
+impl<W: Word, R: ArraySize> BlockSizeUser for RC6EncBackend<W, R>
+where
+    R: Mul<U2>,
+    Prod<R, U2>: Add<U4>,
+    ExpandedKeyTableSize<R>: ArraySize,
+{
     type BlockSize = U16; // TODO
 }
 
-impl <W: Word> BlockBackend for RC6EncBackend<W> {
+impl<W: Word, R: ArraySize> BlockBackend for RC6EncBackend<W, R>
+where
+    R: Mul<U2>,
+    Prod<R, U2>: Add<U4>,
+    ExpandedKeyTableSize<R>: ArraySize,
+{
     fn proc_block(&mut self, mut block: InOut<'_, '_, Block<Self>>) {
         let mut a = W::from_le_bytes(block.get_in()[..4].try_into().unwrap());
         let mut b = W::from_le_bytes(block.get_in()[4..8].try_into().unwrap());
@@ -120,27 +181,53 @@ impl <W: Word> BlockBackend for RC6EncBackend<W> {
     }
 }
 
-impl<W: Word, B: ArraySize> BlockCipherDecrypt for RC6<W, B> {
+impl<W: Word, R: ArraySize, B: ArraySize> BlockCipherDecrypt for RC6<W, R, B>
+where
+    R: Mul<U2>,
+    Prod<R, U2>: Add<U4>,
+    ExpandedKeyTableSize<R>: ArraySize,
+{
     fn decrypt_with_backend(&self, f: impl BlockClosure<BlockSize = Self::BlockSize>) {
-        f.call(&mut RC6DecBackend {
-            expanded_key: self.key,
-        })
+        let mut backend: RC6DecBackend<W, R> = RC6DecBackend {
+            expanded_key: self.key.clone(),
+        };
+        f.call(&mut backend)
     }
 }
 
-struct RC6DecBackend<W: Word> {
-    expanded_key: Array<W, U44>,
+struct RC6DecBackend<W: Word, R: ArraySize>
+where
+    R: Mul<U2>,
+    Prod<R, U2>: Add<U4>,
+    ExpandedKeyTableSize<R>: ArraySize,
+{
+    expanded_key: ExpandedKeyTable<W, R>,
 }
 
-impl <W: Word> ParBlocksSizeUser for RC6DecBackend<W> {
+impl<W: Word, R: ArraySize> ParBlocksSizeUser for RC6DecBackend<W, R>
+where
+    R: Mul<U2>,
+    Prod<R, U2>: Add<U4>,
+    ExpandedKeyTableSize<R>: ArraySize,
+{
     type ParBlocksSize = U1;
 }
 
-impl <W: Word> BlockSizeUser for RC6DecBackend<W> {
+impl<W: Word, R: ArraySize> BlockSizeUser for RC6DecBackend<W, R>
+where
+    R: Mul<U2>,
+    Prod<R, U2>: Add<U4>,
+    ExpandedKeyTableSize<R>: ArraySize,
+{
     type BlockSize = U16;
 }
 
-impl <W: Word> BlockBackend for RC6DecBackend<W> {
+impl<W: Word, R: ArraySize> BlockBackend for RC6DecBackend<W, R>
+where
+    R: Mul<U2>,
+    Prod<R, U2>: Add<U4>,
+    ExpandedKeyTableSize<R>: ArraySize,
+{
     fn proc_block(&mut self, mut block: InOut<'_, '_, Block<Self>>) {
         let mut a = W::from_le_bytes(block.get_in()[..4].try_into().unwrap());
         let mut b = W::from_le_bytes(block.get_in()[4..8].try_into().unwrap());
@@ -190,7 +277,7 @@ trait Word:
     Shl<Output = Self>
     + From<u8>
     + BitOr<Self, Output = Self>
-    + BitXor<Self, Output=Self>
+    + BitXor<Self, Output = Self>
     + BitAnd<Self, Output = Self>
     + DefaultIsZeroes
 {
@@ -229,7 +316,6 @@ macro_rules! impl_word_for_primitive {
                 self.wrapping_add(rhs)
             }
 
-
             fn wrapping_sub(self, rhs: Self) -> Self {
                 self.wrapping_sub(rhs)
             }
@@ -253,16 +339,18 @@ macro_rules! impl_word_for_primitive {
             fn to_le_bytes(self) -> Array<u8, Self::Bytes> {
                 $primitive::to_le_bytes(self).into()
             }
-
         }
     };
 }
 
 impl_word_for_primitive!(u32, U4, 5, 0xB7E15163, 0x9E3779B9);
 
-fn key_expansion<W: Word, B: ArraySize>(key: &Array<u8, B>) -> Array<W, U44> {
-    // output size only depends on the number of rounds
-    assert_eq!(2 * R + 4, U44::to_usize());
+fn key_expansion<W: Word, R: ArraySize, B: ArraySize>(key: &Array<u8, B>) -> ExpandedKeyTable<W, R>
+where
+    R: Mul<U2>,
+    Prod<R, U2>: Add<U4>,
+    ExpandedKeyTableSize<R>: ArraySize,
+{
 
     // b bytes into c words
     let bytes_per_word = W::BITS as usize / 8;
@@ -275,7 +363,7 @@ fn key_expansion<W: Word, B: ArraySize>(key: &Array<u8, B>) -> Array<W, U44> {
         l[i / bytes_per_word] = (l[i / bytes_per_word] << 8.into()) | (W::from(key[i]));
     }
 
-    let mut s: Array<W, U44> = Array::from_fn(|_| W::default());
+    let mut s: ExpandedKeyTable<W, R> = Array::from_fn(|_| W::default());
     s[0] = W::P;
 
     for i in 1..s.len() {
@@ -287,14 +375,14 @@ fn key_expansion<W: Word, B: ArraySize>(key: &Array<u8, B>) -> Array<W, U44> {
     let mut i = 0;
     let mut j = 0;
 
-    let v = 3 * max(c, 2 * R + 4);
+    let v = 3 * max(c, s.len());
     for _s in 1..=v {
         a = s[i].wrapping_add(a).wrapping_add(b).rotate_left(3.into());
         s[i] = a;
         b = (l[j].wrapping_add(a).wrapping_add(b))
             .rotate_left(a.wrapping_add(b).bitand(0b11111.into()));
         l[j] = b;
-        i = (i + 1) % (2 * R + 4);
+        i = (i + 1) % (s.len());
         j = (j + 1) % c;
     }
 
