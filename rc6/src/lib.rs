@@ -329,10 +329,8 @@ pub trait Word:
     fn wrapping_sub(self, rhs: Self) -> Self;
 
     fn wrapping_mul(self, rhs: Self) -> Self;
-
     fn rotate_left(self, rhs: Self) -> Self;
     fn rotate_right(self, rhs: Self) -> Self;
-
     fn from_le_bytes(bytes: &Array<u8, Self::Bytes>) -> Self;
     fn to_le_bytes(self) -> Array<u8, Self::Bytes>;
 }
@@ -348,30 +346,37 @@ macro_rules! impl_word_for_primitive {
 
             const LG_W: Self = $lgw;
 
+            #[inline(always)]
             fn wrapping_add(self, rhs: Self) -> Self {
-                self.wrapping_add(rhs)
+                $primitive::wrapping_add(self, rhs)
             }
 
+            #[inline(always)]
             fn wrapping_sub(self, rhs: Self) -> Self {
-                self.wrapping_sub(rhs)
+                $primitive::wrapping_sub(self, rhs)
             }
 
+            #[inline(always)]
             fn wrapping_mul(self, rhs: Self) -> Self {
-                self.wrapping_mul(rhs)
+                $primitive::wrapping_mul(self, rhs)
             }
 
+            #[inline(always)]
             fn rotate_left(self, rhs: Self) -> Self {
-                self.rotate_left(rhs)
+                $primitive::rotate_left(self, rhs)
             }
 
+            #[inline(always)]
             fn rotate_right(self, rhs: Self) -> Self {
-                self.rotate_right(rhs)
+                $primitive::rotate_right(self, rhs)
             }
 
+            #[inline(always)]
             fn from_le_bytes(bytes: &Array<u8, Self::Bytes>) -> Self {
                 $primitive::from_le_bytes(bytes.as_slice().try_into().unwrap())
             }
 
+            #[inline(always)]
             fn to_le_bytes(self) -> Array<u8, Self::Bytes> {
                 $primitive::to_le_bytes(self).into()
             }
