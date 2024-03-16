@@ -396,13 +396,13 @@ where
 {
 
     // b bytes into c words
-    let bytes_per_word = W::BITS as usize / 8;
+    let bytes_per_word = W::Bytes::to_usize();
     let c = (B::to_usize() + bytes_per_word - 1) / bytes_per_word;
 
     let b = B::to_usize();
 
     let mut l: Vec<W> = vec![W::default(); c];
-    for i in (0..=(b - 1)).rev() {
+    for i in (0..b).rev() {
         l[i / bytes_per_word] = (l[i / bytes_per_word] << 8.into()) | (W::from(key[i]));
     }
 
