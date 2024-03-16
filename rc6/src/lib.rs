@@ -5,7 +5,7 @@ extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
 use cipher::array::Array;
-use cipher::consts::{U1, U16, U2, U4, U44};
+use cipher::consts::{U1, U2, U4};
 use cipher::inout::InOut;
 
 use cipher::{
@@ -20,10 +20,14 @@ use core::marker::PhantomData;
 use cipher::typenum::{Prod, Sum};
 use cipher::zeroize::DefaultIsZeroes;
 use core::ops::{Add, BitAnd, BitOr, BitXor, Mul, Shl};
+use cipher::crypto_common::BlockSizes;
 
 // for r rounds we need 2 * r + 4 e.g. 20 rounds is 44 round keys
 pub type ExpandedKeyTableSize<R> = Sum<Prod<R, U2>, U4>;
 pub type ExpandedKeyTable<W, R> = Array<W, ExpandedKeyTableSize<R>>;
+
+pub type BlockSize<W> = Prod<<W as Word>::Bytes, U4>;
+
 
 // This should be parameterised but hard code for now
 // W - word size (bits) - 32
@@ -35,6 +39,8 @@ const R: usize = 20;
 
 pub struct RC6<W: Word, R: ArraySize, B: ArraySize>
 where
+    W::Bytes: Mul<U4>,
+    BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
@@ -45,6 +51,8 @@ where
 
 impl<W: Word, R: ArraySize, B: ArraySize> BlockCipher for RC6<W, R, B>
 where
+    W::Bytes: Mul<U4>,
+    BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
@@ -53,6 +61,8 @@ where
 
 impl<W: Word, R: ArraySize, B: ArraySize> KeySizeUser for RC6<W, R, B>
 where
+    W::Bytes: Mul<U4>,
+    BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
@@ -62,14 +72,18 @@ where
 
 impl<W: Word, R: ArraySize, B: ArraySize> BlockSizeUser for RC6<W, R, B>
 where
+    W::Bytes: Mul<U4>,
+    BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
 {
-    type BlockSize = U16; // TODO
+    type BlockSize = BlockSize<W>;
 }
 impl<W: Word, R: ArraySize, B: ArraySize> KeyInit for RC6<W, R, B>
 where
+    W::Bytes: Mul<U4>,
+    BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
@@ -86,6 +100,8 @@ where
 
 impl<W: Word, R: ArraySize, B: ArraySize> AlgorithmName for RC6<W, R, B>
 where
+    W::Bytes: Mul<U4>,
+    BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
@@ -97,6 +113,8 @@ where
 
 impl<W: Word, R: ArraySize, B: ArraySize> BlockCipherEncrypt for RC6<W, R, B>
 where
+    W::Bytes: Mul<U4>,
+    BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
@@ -111,6 +129,8 @@ where
 
 struct RC6EncBackend<W: Word, R: ArraySize>
 where
+    W::Bytes: Mul<U4>,
+    BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
@@ -120,6 +140,8 @@ where
 
 impl<W: Word, R: ArraySize> ParBlocksSizeUser for RC6EncBackend<W, R>
 where
+    W::Bytes: Mul<U4>,
+    BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
@@ -129,15 +151,19 @@ where
 
 impl<W: Word, R: ArraySize> BlockSizeUser for RC6EncBackend<W, R>
 where
+    W::Bytes: Mul<U4>,
+    BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
 {
-    type BlockSize = U16; // TODO
+    type BlockSize = BlockSize<W>;
 }
 
 impl<W: Word, R: ArraySize> BlockBackend for RC6EncBackend<W, R>
 where
+    W::Bytes: Mul<U4>,
+    BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
@@ -183,6 +209,8 @@ where
 
 impl<W: Word, R: ArraySize, B: ArraySize> BlockCipherDecrypt for RC6<W, R, B>
 where
+    W::Bytes: Mul<U4>,
+    BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
@@ -197,6 +225,8 @@ where
 
 struct RC6DecBackend<W: Word, R: ArraySize>
 where
+    W::Bytes: Mul<U4>,
+    BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
@@ -206,6 +236,8 @@ where
 
 impl<W: Word, R: ArraySize> ParBlocksSizeUser for RC6DecBackend<W, R>
 where
+    W::Bytes: Mul<U4>,
+    BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
@@ -215,15 +247,19 @@ where
 
 impl<W: Word, R: ArraySize> BlockSizeUser for RC6DecBackend<W, R>
 where
+    W::Bytes: Mul<U4>,
+    BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
 {
-    type BlockSize = U16;
+    type BlockSize = BlockSize<W>;
 }
 
 impl<W: Word, R: ArraySize> BlockBackend for RC6DecBackend<W, R>
 where
+    W::Bytes: Mul<U4>,
+    BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
@@ -273,7 +309,7 @@ where
     }
 }
 
-trait Word:
+pub trait Word:
     Shl<Output = Self>
     + From<u8>
     + BitOr<Self, Output = Self>
@@ -347,6 +383,8 @@ impl_word_for_primitive!(u32, U4, 5, 0xB7E15163, 0x9E3779B9);
 
 fn key_expansion<W: Word, R: ArraySize, B: ArraySize>(key: &Array<u8, B>) -> ExpandedKeyTable<W, R>
 where
+    W::Bytes: Mul<U4>,
+    BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
