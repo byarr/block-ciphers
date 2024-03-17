@@ -86,18 +86,9 @@ rc6_test_case!(
     "c8 24 18 16 f0 d7 e4 89 20 ad 16 a1 67 4e 5d 48"
 );
 
-
 // https://datatracker.ietf.org/doc/html/draft-krovetz-rc6-rc5-vectors-00#section-3
 
-rc6_test_case!(
-    rc6_8_12_4,
-    u8,
-    U12,
-    U4,
-    "00010203",
-    "00010203",
-    "AEFC4612"
-);
+rc6_test_case!(rc6_8_12_4, u8, U12, U4, "00010203", "00010203", "AEFC4612");
 
 rc6_test_case!(
     rc6_16_16_8,
