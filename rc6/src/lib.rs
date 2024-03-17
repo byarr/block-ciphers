@@ -171,10 +171,10 @@ where
                 .rotate_left(W::LG_W);
 
             a = (a.bitxor(t))
-                .rotate_left(u.bitand(0b111111.into()))
+                .rotate_left(u)
                 .wrapping_add(self.expanded_key[2 * i]);
             c = (c.bitxor(u))
-                .rotate_left(t.bitand(0b111111.into()))
+                .rotate_left(t)
                 .wrapping_add(self.expanded_key[2 * i + 1]);
 
             let ta = a;
@@ -273,11 +273,11 @@ where
 
             c = c
                 .wrapping_sub(self.expanded_key[2 * i + 1])
-                .rotate_right(t.bitand(0b111111.into()))
+                .rotate_right(t)
                 .bitxor(u);
             a = a
                 .wrapping_sub(self.expanded_key[2 * i])
-                .rotate_right(u.bitand(0b111111.into()))
+                .rotate_right(u)
                 .bitxor(t);
         }
 
@@ -345,12 +345,14 @@ macro_rules! impl_word_for_primitive {
 
             #[inline(always)]
             fn rotate_left(self, rhs: Self) -> Self {
-                $primitive::rotate_left(self, rhs as u32)
+                let mask = (1 << (Self::LG_W)) - 1;
+                $primitive::rotate_left(self, rhs.bitand(mask) as u32)
             }
 
             #[inline(always)]
             fn rotate_right(self, rhs: Self) -> Self {
-                $primitive::rotate_right(self, rhs as u32)
+                let mask = (1 << (Self::LG_W)) - 1;
+                $primitive::rotate_right(self, rhs.bitand(mask) as u32)
             }
 
             #[inline(always)]
@@ -406,7 +408,7 @@ where
         a = s[i].wrapping_add(a).wrapping_add(b).rotate_left(3.into());
         s[i] = a;
         b = (l[j].wrapping_add(a).wrapping_add(b))
-            .rotate_left(a.wrapping_add(b).bitand(0b111111.into()));
+            .rotate_left(a.wrapping_add(b));
         l[j] = b;
         i = (i + 1) % (s.len());
         j = (j + 1) % c;
