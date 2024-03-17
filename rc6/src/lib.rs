@@ -17,17 +17,16 @@ use core::cmp::max;
 use core::fmt::Formatter;
 use core::marker::PhantomData;
 
+use cipher::crypto_common::BlockSizes;
 use cipher::typenum::{Prod, Sum};
 use cipher::zeroize::DefaultIsZeroes;
 use core::ops::{Add, BitAnd, BitOr, BitXor, Mul, Shl};
-use cipher::crypto_common::BlockSizes;
 
 // for r rounds we need 2 * r + 4 e.g. 20 rounds is 44 round keys
 pub type ExpandedKeyTableSize<R> = Sum<Prod<R, U2>, U4>;
 pub type ExpandedKeyTable<W, R> = Array<W, ExpandedKeyTableSize<R>>;
 
 pub type BlockSize<W> = Prod<<W as Word>::Bytes, U4>;
-
 
 // This should be parameterised but hard code for now
 // W - word size (bits) - 32
@@ -377,7 +376,6 @@ where
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
 {
-
     // b bytes into c words
     let bytes_per_word = W::Bytes::to_usize();
     let c = (B::to_usize() + bytes_per_word - 1) / bytes_per_word;
