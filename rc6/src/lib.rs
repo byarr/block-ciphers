@@ -366,6 +366,8 @@ macro_rules! impl_word_for_primitive {
     };
 }
 
+impl_word_for_primitive!(u8, U1, 3, 0xB7, 0x9E);
+impl_word_for_primitive!(u16, U2, 4, 0xB7E1, 0x9E37);
 impl_word_for_primitive!(u32, U4, 5, 0xB7E15163, 0x9E3779B9);
 impl_word_for_primitive!(u64, U8, 6, 0xb7e151628aed2a6b, 0x9e3779b97f4a7c15);
 
@@ -384,7 +386,7 @@ where
 
     let mut l: Vec<W> = vec![W::default(); c];
     for i in (0..b).rev() {
-        l[i / bytes_per_word] = (l[i / bytes_per_word] << 8.into()) | (W::from(key[i]));
+        l[i / bytes_per_word] = (l[i / bytes_per_word].rotate_left(8.into())) | (W::from(key[i]));
     }
 
     let mut s: ExpandedKeyTable<W, R> = Array::from_fn(|_| W::default());

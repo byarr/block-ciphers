@@ -1,7 +1,7 @@
 extern crate rc6;
 
 use cipher::array::Array;
-use cipher::consts::{U16, U20, U24, U32};
+use cipher::consts::{U12, U16, U20, U24, U32, U4, U8};
 use cipher::{BlockCipherDecrypt, BlockCipherEncrypt, KeyInit};
 use hex_literal::hex;
 use rc6::RC6;
@@ -84,6 +84,29 @@ rc6_test_case!(
     "02 13 24 35 46 57 68 79 8a 9b ac bd ce df e0 f1",
     "01 23 45 67 89 ab cd ef 01 12 23 34 45 56 67 78 89 9a ab bc cd de ef f0 10 32 54 76 98 ba dc fe",
     "c8 24 18 16 f0 d7 e4 89 20 ad 16 a1 67 4e 5d 48"
+);
+
+
+// https://datatracker.ietf.org/doc/html/draft-krovetz-rc6-rc5-vectors-00#section-3
+
+rc6_test_case!(
+    rc6_8_12_4,
+    u8,
+    U12,
+    U4,
+    "00010203",
+    "00010203",
+    "AEFC4612"
+);
+
+rc6_test_case!(
+    rc6_16_16_8,
+    u16,
+    U16,
+    U8,
+    "0001020304050607",
+    "0001020304050607",
+    "2FF0B68EAEFFAD5B"
 );
 
 rc6_test_case!(
