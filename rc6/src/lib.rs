@@ -33,9 +33,6 @@ pub type BlockSize<W> = Prod<<W as Word>::Bytes, U4>;
 // R - number of rounds - 20
 // B - key length in bytes - 16
 
-// number of rounds
-const R: usize = 20;
-
 pub struct RC6<W: Word, R: ArraySize, B: ArraySize>
 where
     BlockSize<W>: BlockSizes,
@@ -165,7 +162,7 @@ where
 
         b = b.wrapping_add(self.expanded_key[0]);
         d = d.wrapping_add(self.expanded_key[1]);
-        for i in 1..=R {
+        for i in 1..=R::to_usize() {
             let t = b
                 .wrapping_mul(b.wrapping_mul(2.into()).wrapping_add(1.into()))
                 .rotate_left(W::LG_W);
@@ -186,8 +183,8 @@ where
             c = d;
             d = ta;
         }
-        a = a.wrapping_add(self.expanded_key[2 * R + 2]);
-        c = c.wrapping_add(self.expanded_key[2 * R + 3]);
+        a = a.wrapping_add(self.expanded_key[2 * R::to_usize() + 2]);
+        c = c.wrapping_add(self.expanded_key[2 * R::to_usize() + 3]);
 
         block.get_out()[0..w_bytes].copy_from_slice(&a.to_le_bytes());
         block.get_out()[w_bytes..2*w_bytes].copy_from_slice(&b.to_le_bytes());
@@ -255,10 +252,10 @@ where
         let mut c = W::from_le_bytes(block.get_in()[2*w_bytes..3*w_bytes].try_into().unwrap());
         let mut d = W::from_le_bytes(block.get_in()[3*w_bytes..].try_into().unwrap());
 
-        c = c.wrapping_sub(self.expanded_key[2 * R + 3]);
-        a = a.wrapping_sub(self.expanded_key[2 * R + 2]);
+        c = c.wrapping_sub(self.expanded_key[2 * R::to_usize() + 3]);
+        a = a.wrapping_sub(self.expanded_key[2 * R::to_usize() + 2]);
 
-        for i in (1..=R).rev() {
+        for i in (1..=R::to_usize()).rev() {
             {
                 let temp_a = a;
                 a = d;
