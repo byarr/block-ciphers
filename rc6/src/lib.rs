@@ -39,7 +39,6 @@ const R: usize = 20;
 
 pub struct RC6<W: Word, R: ArraySize, B: ArraySize>
 where
-    W::Bytes: Mul<U4>,
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
@@ -51,7 +50,6 @@ where
 
 impl<W: Word, R: ArraySize, B: ArraySize> BlockCipher for RC6<W, R, B>
 where
-    W::Bytes: Mul<U4>,
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
@@ -61,7 +59,6 @@ where
 
 impl<W: Word, R: ArraySize, B: ArraySize> KeySizeUser for RC6<W, R, B>
 where
-    W::Bytes: Mul<U4>,
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
@@ -72,7 +69,6 @@ where
 
 impl<W: Word, R: ArraySize, B: ArraySize> BlockSizeUser for RC6<W, R, B>
 where
-    W::Bytes: Mul<U4>,
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
@@ -82,7 +78,6 @@ where
 }
 impl<W: Word, R: ArraySize, B: ArraySize> KeyInit for RC6<W, R, B>
 where
-    W::Bytes: Mul<U4>,
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
@@ -100,7 +95,6 @@ where
 
 impl<W: Word, R: ArraySize, B: ArraySize> AlgorithmName for RC6<W, R, B>
 where
-    W::Bytes: Mul<U4>,
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
@@ -113,7 +107,6 @@ where
 
 impl<W: Word, R: ArraySize, B: ArraySize> BlockCipherEncrypt for RC6<W, R, B>
 where
-    W::Bytes: Mul<U4>,
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
@@ -129,7 +122,6 @@ where
 
 struct RC6EncBackend<W: Word, R: ArraySize>
 where
-    W::Bytes: Mul<U4>,
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
@@ -140,7 +132,6 @@ where
 
 impl<W: Word, R: ArraySize> ParBlocksSizeUser for RC6EncBackend<W, R>
 where
-    W::Bytes: Mul<U4>,
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
@@ -151,7 +142,6 @@ where
 
 impl<W: Word, R: ArraySize> BlockSizeUser for RC6EncBackend<W, R>
 where
-    W::Bytes: Mul<U4>,
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
@@ -162,7 +152,6 @@ where
 
 impl<W: Word, R: ArraySize> BlockBackend for RC6EncBackend<W, R>
 where
-    W::Bytes: Mul<U4>,
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
@@ -209,7 +198,6 @@ where
 
 impl<W: Word, R: ArraySize, B: ArraySize> BlockCipherDecrypt for RC6<W, R, B>
 where
-    W::Bytes: Mul<U4>,
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
@@ -225,7 +213,6 @@ where
 
 struct RC6DecBackend<W: Word, R: ArraySize>
 where
-    W::Bytes: Mul<U4>,
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
@@ -236,7 +223,6 @@ where
 
 impl<W: Word, R: ArraySize> ParBlocksSizeUser for RC6DecBackend<W, R>
 where
-    W::Bytes: Mul<U4>,
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
@@ -247,7 +233,6 @@ where
 
 impl<W: Word, R: ArraySize> BlockSizeUser for RC6DecBackend<W, R>
 where
-    W::Bytes: Mul<U4>,
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
@@ -258,7 +243,6 @@ where
 
 impl<W: Word, R: ArraySize> BlockBackend for RC6DecBackend<W, R>
 where
-    W::Bytes: Mul<U4>,
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
@@ -317,7 +301,7 @@ pub trait Word:
     + BitAnd<Self, Output = Self>
     + DefaultIsZeroes
 {
-    type Bytes: ArraySize;
+    type Bytes: ArraySize + Mul<U4>;
     const P: Self;
     const Q: Self;
 
@@ -388,7 +372,6 @@ impl_word_for_primitive!(u32, U4, 5, 0xB7E15163, 0x9E3779B9);
 
 fn key_expansion<W: Word, R: ArraySize, B: ArraySize>(key: &Array<u8, B>) -> ExpandedKeyTable<W, R>
 where
-    W::Bytes: Mul<U4>,
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
