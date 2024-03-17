@@ -5,7 +5,7 @@ extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
 use cipher::array::Array;
-use cipher::consts::{U1, U2, U4, U5, U8};
+use cipher::consts::{U1, U2, U4, U8};
 use cipher::inout::InOut;
 
 use cipher::{
@@ -156,9 +156,9 @@ where
     fn proc_block(&mut self, mut block: InOut<'_, '_, Block<Self>>) {
         let w_bytes = W::Bytes::to_usize();
         let mut a = W::from_le_bytes(block.get_in()[..w_bytes].try_into().unwrap());
-        let mut b = W::from_le_bytes(block.get_in()[w_bytes..2*w_bytes].try_into().unwrap());
-        let mut c = W::from_le_bytes(block.get_in()[2*w_bytes..3*w_bytes].try_into().unwrap());
-        let mut d = W::from_le_bytes(block.get_in()[3*w_bytes..].try_into().unwrap());
+        let mut b = W::from_le_bytes(block.get_in()[w_bytes..2 * w_bytes].try_into().unwrap());
+        let mut c = W::from_le_bytes(block.get_in()[2 * w_bytes..3 * w_bytes].try_into().unwrap());
+        let mut d = W::from_le_bytes(block.get_in()[3 * w_bytes..].try_into().unwrap());
 
         b = b.wrapping_add(self.expanded_key[0]);
         d = d.wrapping_add(self.expanded_key[1]);
@@ -187,9 +187,9 @@ where
         c = c.wrapping_add(self.expanded_key[2 * R::to_usize() + 3]);
 
         block.get_out()[0..w_bytes].copy_from_slice(&a.to_le_bytes());
-        block.get_out()[w_bytes..2*w_bytes].copy_from_slice(&b.to_le_bytes());
-        block.get_out()[2*w_bytes..3*w_bytes].copy_from_slice(&c.to_le_bytes());
-        block.get_out()[3*w_bytes..].copy_from_slice(&d.to_le_bytes());
+        block.get_out()[w_bytes..2 * w_bytes].copy_from_slice(&b.to_le_bytes());
+        block.get_out()[2 * w_bytes..3 * w_bytes].copy_from_slice(&c.to_le_bytes());
+        block.get_out()[3 * w_bytes..].copy_from_slice(&d.to_le_bytes());
     }
 }
 
@@ -248,9 +248,9 @@ where
     fn proc_block(&mut self, mut block: InOut<'_, '_, Block<Self>>) {
         let w_bytes = W::Bytes::to_usize();
         let mut a = W::from_le_bytes(block.get_in()[..w_bytes].try_into().unwrap());
-        let mut b = W::from_le_bytes(block.get_in()[w_bytes..2*w_bytes].try_into().unwrap());
-        let mut c = W::from_le_bytes(block.get_in()[2*w_bytes..3*w_bytes].try_into().unwrap());
-        let mut d = W::from_le_bytes(block.get_in()[3*w_bytes..].try_into().unwrap());
+        let mut b = W::from_le_bytes(block.get_in()[w_bytes..2 * w_bytes].try_into().unwrap());
+        let mut c = W::from_le_bytes(block.get_in()[2 * w_bytes..3 * w_bytes].try_into().unwrap());
+        let mut d = W::from_le_bytes(block.get_in()[3 * w_bytes..].try_into().unwrap());
 
         c = c.wrapping_sub(self.expanded_key[2 * R::to_usize() + 3]);
         a = a.wrapping_sub(self.expanded_key[2 * R::to_usize() + 2]);
@@ -285,9 +285,9 @@ where
         b = b.wrapping_sub(self.expanded_key[0]);
 
         block.get_out()[0..w_bytes].copy_from_slice(&a.to_le_bytes());
-        block.get_out()[w_bytes..2*w_bytes].copy_from_slice(&b.to_le_bytes());
-        block.get_out()[2*w_bytes..3*w_bytes].copy_from_slice(&c.to_le_bytes());
-        block.get_out()[3*w_bytes..].copy_from_slice(&d.to_le_bytes());
+        block.get_out()[w_bytes..2 * w_bytes].copy_from_slice(&b.to_le_bytes());
+        block.get_out()[2 * w_bytes..3 * w_bytes].copy_from_slice(&c.to_le_bytes());
+        block.get_out()[3 * w_bytes..].copy_from_slice(&d.to_le_bytes());
     }
 }
 
