@@ -5,7 +5,7 @@ extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
 use cipher::array::Array;
-use cipher::consts::{U1, U2, U4};
+use cipher::consts::{U1, U2, U4, U5, U8};
 use cipher::inout::InOut;
 
 use cipher::{
@@ -346,12 +346,12 @@ macro_rules! impl_word_for_primitive {
 
             #[inline(always)]
             fn rotate_left(self, rhs: Self) -> Self {
-                $primitive::rotate_left(self, rhs)
+                $primitive::rotate_left(self, rhs as u32)
             }
 
             #[inline(always)]
             fn rotate_right(self, rhs: Self) -> Self {
-                $primitive::rotate_right(self, rhs)
+                $primitive::rotate_right(self, rhs as u32)
             }
 
             #[inline(always)]
@@ -368,6 +368,7 @@ macro_rules! impl_word_for_primitive {
 }
 
 impl_word_for_primitive!(u32, U4, 5, 0xB7E15163, 0x9E3779B9);
+impl_word_for_primitive!(u64, U8, 6, 0xb7e151628aed2a6b, 0x9e3779b97f4a7c15);
 
 fn key_expansion<W: Word, R: ArraySize, B: ArraySize>(key: &Array<u8, B>) -> ExpandedKeyTable<W, R>
 where
