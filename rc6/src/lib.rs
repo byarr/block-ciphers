@@ -97,7 +97,7 @@ where
     ExpandedKeyTableSize<R>: ArraySize,
 {
     fn write_alg_name(f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(f, "RC6 {}/20/{}", W::Bytes::to_u8(), B::U8)
+        write!(f, "RC6 {}/{}/{}", W::Bytes::to_u8(), R::to_u8(), B::U8)
     }
 }
 
@@ -171,10 +171,10 @@ where
                 .rotate_left(W::LG_W);
 
             a = (a.bitxor(t))
-                .rotate_left(u.bitand(0b11111.into()))
+                .rotate_left(u.bitand(0b111111.into()))
                 .wrapping_add(self.expanded_key[2 * i]);
             c = (c.bitxor(u))
-                .rotate_left(t.bitand(0b11111.into()))
+                .rotate_left(t.bitand(0b111111.into()))
                 .wrapping_add(self.expanded_key[2 * i + 1]);
 
             let ta = a;
@@ -273,11 +273,11 @@ where
 
             c = c
                 .wrapping_sub(self.expanded_key[2 * i + 1])
-                .rotate_right(t.bitand(0b11111.into()))
+                .rotate_right(t.bitand(0b111111.into()))
                 .bitxor(u);
             a = a
                 .wrapping_sub(self.expanded_key[2 * i])
-                .rotate_right(u.bitand(0b11111.into()))
+                .rotate_right(u.bitand(0b111111.into()))
                 .bitxor(t);
         }
 
@@ -404,7 +404,7 @@ where
         a = s[i].wrapping_add(a).wrapping_add(b).rotate_left(3.into());
         s[i] = a;
         b = (l[j].wrapping_add(a).wrapping_add(b))
-            .rotate_left(a.wrapping_add(b).bitand(0b11111.into()));
+            .rotate_left(a.wrapping_add(b).bitand(0b111111.into()));
         l[j] = b;
         i = (i + 1) % (s.len());
         j = (j + 1) % c;
