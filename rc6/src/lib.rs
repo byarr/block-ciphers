@@ -368,7 +368,7 @@ macro_rules! impl_word_for_primitive {
     };
 }
 
-impl_word_for_primitive!(u8, U1, 0xB7, 0x9E);
+impl_word_for_primitive!(u8, U1, 0xB7, 0x9F);
 impl_word_for_primitive!(u16, U2, 0xB7E1, 0x9E37);
 impl_word_for_primitive!(u32, U4, 0xB7E15163, 0x9E3779B9);
 impl_word_for_primitive!(u64, U8, 0xb7e151628aed2a6b, 0x9e3779b97f4a7c15);
