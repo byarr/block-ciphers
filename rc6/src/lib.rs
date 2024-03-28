@@ -407,8 +407,7 @@ where
     for _s in 1..=v {
         a = s[i].wrapping_add(a).wrapping_add(b).rotate_left(3.into());
         s[i] = a;
-        b = (l[j].wrapping_add(a).wrapping_add(b))
-            .rotate_left(a.wrapping_add(b));
+        b = (l[j].wrapping_add(a).wrapping_add(b)).rotate_left(a.wrapping_add(b));
         l[j] = b;
         i = (i + 1) % (s.len());
         j = (j + 1) % c;
