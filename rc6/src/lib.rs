@@ -44,6 +44,100 @@ where
     key_size: PhantomData<B>,
 }
 
+ impl <W: Word, R: ArraySize, B: ArraySize> RC6<W, R, B>
+    where
+        BlockSize<W>: BlockSizes,
+        R: Mul<U2>,
+        Prod<R, U2>: Add<U4>,
+        ExpandedKeyTableSize<R>: ArraySize,
+{
+
+    pub fn encrypt(&self, mut block: InOut<'_, '_, Block<Self>>) {
+        let w_bytes = W::Bytes::to_usize();
+        let mut a = W::from_le_bytes(block.get_in()[..w_bytes].try_into().unwrap());
+        let mut b = W::from_le_bytes(block.get_in()[w_bytes..2 * w_bytes].try_into().unwrap());
+        let mut c = W::from_le_bytes(block.get_in()[2 * w_bytes..3 * w_bytes].try_into().unwrap());
+        let mut d = W::from_le_bytes(block.get_in()[3 * w_bytes..].try_into().unwrap());
+
+        b = b.wrapping_add(self.key[0]);
+        d = d.wrapping_add(self.key[1]);
+        for i in 1..=R::to_usize() {
+            let t = b
+                .wrapping_mul(b.wrapping_mul(2.into()).wrapping_add(1.into()))
+                .rotate_left(W::LG_W);
+            let u = d
+                .wrapping_mul(d.wrapping_mul(2.into()).wrapping_add(1.into()))
+                .rotate_left(W::LG_W);
+
+            a = (a.bitxor(t))
+                .rotate_left(u)
+                .wrapping_add(self.key[2 * i]);
+            c = (c.bitxor(u))
+                .rotate_left(t)
+                .wrapping_add(self.key[2 * i + 1]);
+
+            let ta = a;
+            a = b;
+            b = c;
+            c = d;
+            d = ta;
+        }
+        a = a.wrapping_add(self.key[2 * R::to_usize() + 2]);
+        c = c.wrapping_add(self.key[2 * R::to_usize() + 3]);
+
+        block.get_out()[0..w_bytes].copy_from_slice(&a.to_le_bytes());
+        block.get_out()[w_bytes..2 * w_bytes].copy_from_slice(&b.to_le_bytes());
+        block.get_out()[2 * w_bytes..3 * w_bytes].copy_from_slice(&c.to_le_bytes());
+        block.get_out()[3 * w_bytes..].copy_from_slice(&d.to_le_bytes());
+    }
+
+    pub fn decrypt(&self, mut block: InOut<'_, '_, Block<Self>>) {
+        let w_bytes = W::Bytes::to_usize();
+        let mut a = W::from_le_bytes(block.get_in()[..w_bytes].try_into().unwrap());
+        let mut b = W::from_le_bytes(block.get_in()[w_bytes..2 * w_bytes].try_into().unwrap());
+        let mut c = W::from_le_bytes(block.get_in()[2 * w_bytes..3 * w_bytes].try_into().unwrap());
+        let mut d = W::from_le_bytes(block.get_in()[3 * w_bytes..].try_into().unwrap());
+
+        c = c.wrapping_sub(self.key[2 * R::to_usize() + 3]);
+        a = a.wrapping_sub(self.key[2 * R::to_usize() + 2]);
+
+        for i in (1..=R::to_usize()).rev() {
+            {
+                let temp_a = a;
+                a = d;
+                d = c;
+                c = b;
+                b = temp_a;
+            }
+
+            let u = d
+                .wrapping_mul(d.wrapping_mul(2.into()).wrapping_add(1.into()))
+                .rotate_left(W::LG_W);
+            let t = b
+                .wrapping_mul(b.wrapping_mul(2.into()).wrapping_add(1.into()))
+                .rotate_left(W::LG_W);
+
+            c = c
+                .wrapping_sub(self.key[2 * i + 1])
+                .rotate_right(t)
+                .bitxor(u);
+            a = a
+                .wrapping_sub(self.key[2 * i])
+                .rotate_right(u)
+                .bitxor(t);
+        }
+
+        d = d.wrapping_sub(self.key[1]);
+        b = b.wrapping_sub(self.key[0]);
+
+        block.get_out()[0..w_bytes].copy_from_slice(&a.to_le_bytes());
+        block.get_out()[w_bytes..2 * w_bytes].copy_from_slice(&b.to_le_bytes());
+        block.get_out()[2 * w_bytes..3 * w_bytes].copy_from_slice(&c.to_le_bytes());
+        block.get_out()[3 * w_bytes..].copy_from_slice(&d.to_le_bytes());
+    }
+
+}
+
 impl<W: Word, R: ArraySize, B: ArraySize> BlockCipher for RC6<W, R, B>
 where
     BlockSize<W>: BlockSizes,
@@ -109,24 +203,24 @@ where
     ExpandedKeyTableSize<R>: ArraySize,
 {
     fn encrypt_with_backend(&self, f: impl BlockClosure<BlockSize = Self::BlockSize>) {
-        let mut backend: RC6EncBackend<W, R> = RC6EncBackend {
-            expanded_key: self.key.clone(),
+        let mut backend: RC6EncBackend<W, R, B> = RC6EncBackend {
+            enc_dec: self,
         };
         f.call(&mut backend)
     }
 }
 
-struct RC6EncBackend<W: Word, R: ArraySize>
+struct RC6EncBackend<'a, W: Word, R: ArraySize, B: ArraySize>
 where
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
 {
-    expanded_key: ExpandedKeyTable<W, R>,
+    enc_dec: &'a RC6<W, R, B>,
 }
 
-impl<W: Word, R: ArraySize> ParBlocksSizeUser for RC6EncBackend<W, R>
+impl<'a, W: Word, R: ArraySize, B: ArraySize> ParBlocksSizeUser for RC6EncBackend<'a, W, R, B>
 where
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
@@ -136,7 +230,7 @@ where
     type ParBlocksSize = U1;
 }
 
-impl<W: Word, R: ArraySize> BlockSizeUser for RC6EncBackend<W, R>
+impl<'a, W: Word, R: ArraySize, B: ArraySize> BlockSizeUser for RC6EncBackend<'a, W, R, B>
 where
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
@@ -146,50 +240,15 @@ where
     type BlockSize = BlockSize<W>;
 }
 
-impl<W: Word, R: ArraySize> BlockBackend for RC6EncBackend<W, R>
+impl<'a, W: Word, R: ArraySize, B: ArraySize> BlockBackend for RC6EncBackend<'a, W, R, B>
 where
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
 {
-    fn proc_block(&mut self, mut block: InOut<'_, '_, Block<Self>>) {
-        let w_bytes = W::Bytes::to_usize();
-        let mut a = W::from_le_bytes(block.get_in()[..w_bytes].try_into().unwrap());
-        let mut b = W::from_le_bytes(block.get_in()[w_bytes..2 * w_bytes].try_into().unwrap());
-        let mut c = W::from_le_bytes(block.get_in()[2 * w_bytes..3 * w_bytes].try_into().unwrap());
-        let mut d = W::from_le_bytes(block.get_in()[3 * w_bytes..].try_into().unwrap());
-
-        b = b.wrapping_add(self.expanded_key[0]);
-        d = d.wrapping_add(self.expanded_key[1]);
-        for i in 1..=R::to_usize() {
-            let t = b
-                .wrapping_mul(b.wrapping_mul(2.into()).wrapping_add(1.into()))
-                .rotate_left(W::LG_W);
-            let u = d
-                .wrapping_mul(d.wrapping_mul(2.into()).wrapping_add(1.into()))
-                .rotate_left(W::LG_W);
-
-            a = (a.bitxor(t))
-                .rotate_left(u)
-                .wrapping_add(self.expanded_key[2 * i]);
-            c = (c.bitxor(u))
-                .rotate_left(t)
-                .wrapping_add(self.expanded_key[2 * i + 1]);
-
-            let ta = a;
-            a = b;
-            b = c;
-            c = d;
-            d = ta;
-        }
-        a = a.wrapping_add(self.expanded_key[2 * R::to_usize() + 2]);
-        c = c.wrapping_add(self.expanded_key[2 * R::to_usize() + 3]);
-
-        block.get_out()[0..w_bytes].copy_from_slice(&a.to_le_bytes());
-        block.get_out()[w_bytes..2 * w_bytes].copy_from_slice(&b.to_le_bytes());
-        block.get_out()[2 * w_bytes..3 * w_bytes].copy_from_slice(&c.to_le_bytes());
-        block.get_out()[3 * w_bytes..].copy_from_slice(&d.to_le_bytes());
+    fn proc_block(&mut self, block: InOut<'_, '_, Block<Self>>) {
+        self.enc_dec.encrypt(block)
     }
 }
 
@@ -201,24 +260,24 @@ where
     ExpandedKeyTableSize<R>: ArraySize,
 {
     fn decrypt_with_backend(&self, f: impl BlockClosure<BlockSize = Self::BlockSize>) {
-        let mut backend: RC6DecBackend<W, R> = RC6DecBackend {
-            expanded_key: self.key.clone(),
+        let mut backend: RC6DecBackend<W, R, B> = RC6DecBackend {
+            enc_dec: self,
         };
         f.call(&mut backend)
     }
 }
 
-struct RC6DecBackend<W: Word, R: ArraySize>
+struct RC6DecBackend<'a, W: Word, R: ArraySize, B: ArraySize>
 where
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
 {
-    expanded_key: ExpandedKeyTable<W, R>,
+    enc_dec: &'a RC6<W, R, B>,
 }
 
-impl<W: Word, R: ArraySize> ParBlocksSizeUser for RC6DecBackend<W, R>
+impl<'a, W: Word, R: ArraySize, B: ArraySize> ParBlocksSizeUser for RC6DecBackend<'a, W, R, B>
 where
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
@@ -228,7 +287,7 @@ where
     type ParBlocksSize = U1;
 }
 
-impl<W: Word, R: ArraySize> BlockSizeUser for RC6DecBackend<W, R>
+impl<'a, W: Word, R: ArraySize, B: ArraySize> BlockSizeUser for RC6DecBackend<'a, W, R, B>
 where
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
@@ -238,56 +297,15 @@ where
     type BlockSize = BlockSize<W>;
 }
 
-impl<W: Word, R: ArraySize> BlockBackend for RC6DecBackend<W, R>
+impl<'a, W: Word, R: ArraySize, B: ArraySize> BlockBackend for RC6DecBackend<'a, W, R, B>
 where
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
 {
-    fn proc_block(&mut self, mut block: InOut<'_, '_, Block<Self>>) {
-        let w_bytes = W::Bytes::to_usize();
-        let mut a = W::from_le_bytes(block.get_in()[..w_bytes].try_into().unwrap());
-        let mut b = W::from_le_bytes(block.get_in()[w_bytes..2 * w_bytes].try_into().unwrap());
-        let mut c = W::from_le_bytes(block.get_in()[2 * w_bytes..3 * w_bytes].try_into().unwrap());
-        let mut d = W::from_le_bytes(block.get_in()[3 * w_bytes..].try_into().unwrap());
-
-        c = c.wrapping_sub(self.expanded_key[2 * R::to_usize() + 3]);
-        a = a.wrapping_sub(self.expanded_key[2 * R::to_usize() + 2]);
-
-        for i in (1..=R::to_usize()).rev() {
-            {
-                let temp_a = a;
-                a = d;
-                d = c;
-                c = b;
-                b = temp_a;
-            }
-
-            let u = d
-                .wrapping_mul(d.wrapping_mul(2.into()).wrapping_add(1.into()))
-                .rotate_left(W::LG_W);
-            let t = b
-                .wrapping_mul(b.wrapping_mul(2.into()).wrapping_add(1.into()))
-                .rotate_left(W::LG_W);
-
-            c = c
-                .wrapping_sub(self.expanded_key[2 * i + 1])
-                .rotate_right(t)
-                .bitxor(u);
-            a = a
-                .wrapping_sub(self.expanded_key[2 * i])
-                .rotate_right(u)
-                .bitxor(t);
-        }
-
-        d = d.wrapping_sub(self.expanded_key[1]);
-        b = b.wrapping_sub(self.expanded_key[0]);
-
-        block.get_out()[0..w_bytes].copy_from_slice(&a.to_le_bytes());
-        block.get_out()[w_bytes..2 * w_bytes].copy_from_slice(&b.to_le_bytes());
-        block.get_out()[2 * w_bytes..3 * w_bytes].copy_from_slice(&c.to_le_bytes());
-        block.get_out()[3 * w_bytes..].copy_from_slice(&d.to_le_bytes());
+    fn proc_block(&mut self, block: InOut<'_, '_, Block<Self>>) {
+        self.enc_dec.decrypt(block)
     }
 }
 
