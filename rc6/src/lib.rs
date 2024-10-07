@@ -8,11 +8,7 @@ use cipher::array::Array;
 use cipher::consts::{U1, U2, U4, U8};
 use cipher::inout::InOut;
 
-use cipher::{
-    AlgorithmName, ArraySize, Block, BlockBackend, BlockCipher, BlockCipherDecrypt,
-    BlockCipherEncrypt, BlockClosure, BlockSizeUser, Key, KeyInit, KeySizeUser, ParBlocksSizeUser,
-    Unsigned,
-};
+use cipher::{array::ArraySize, typenum::Unsigned, AlgorithmName, Block, BlockCipherEncBackend, BlockCipherDecrypt, BlockCipherEncrypt, BlockCipherDecClosure, BlockSizeUser, Key, KeyInit, KeySizeUser, ParBlocksSizeUser, BlockCipherEncClosure, BlockCipherDecBackend};
 use core::cmp::max;
 use core::fmt::Formatter;
 use core::marker::PhantomData;
@@ -138,15 +134,6 @@ where
 
 }
 
-impl<W: Word, R: ArraySize, B: ArraySize> BlockCipher for RC6<W, R, B>
-where
-    BlockSize<W>: BlockSizes,
-    R: Mul<U2>,
-    Prod<R, U2>: Add<U4>,
-    ExpandedKeyTableSize<R>: ArraySize,
-{
-}
-
 impl<W: Word, R: ArraySize, B: ArraySize> KeySizeUser for RC6<W, R, B>
 where
     BlockSize<W>: BlockSizes,
@@ -202,7 +189,7 @@ where
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
 {
-    fn encrypt_with_backend(&self, f: impl BlockClosure<BlockSize = Self::BlockSize>) {
+    fn encrypt_with_backend(&self, f: impl BlockCipherEncClosure<BlockSize = Self::BlockSize>) {
         let mut backend: RC6EncBackend<W, R, B> = RC6EncBackend {
             enc_dec: self,
         };
@@ -240,15 +227,28 @@ where
     type BlockSize = BlockSize<W>;
 }
 
-impl<'a, W: Word, R: ArraySize, B: ArraySize> BlockBackend for RC6EncBackend<'a, W, R, B>
+
+impl <'a, W: Word, R: ArraySize, B: ArraySize> BlockCipherEncBackend for RC6EncBackend<'_, W, R, B>
 where
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
 {
-    fn proc_block(&mut self, block: InOut<'_, '_, Block<Self>>) {
+    fn encrypt_block(&self, block: InOut<'_, '_, Block<Self>>) {
         self.enc_dec.encrypt(block)
+    }
+}
+
+impl <'a, W: Word, R: ArraySize, B: ArraySize> BlockCipherDecBackend for RC6DecBackend<'a, W, R, B>
+where
+    BlockSize<W>: BlockSizes,
+    R: Mul<U2>,
+    Prod<R, U2>: Add<U4>,
+    ExpandedKeyTableSize<R>: ArraySize,
+{
+    fn decrypt_block(&self,  block: InOut<'_, '_, Block<Self>>) {
+        self.enc_dec.decrypt(block)
     }
 }
 
@@ -259,7 +259,7 @@ where
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
 {
-    fn decrypt_with_backend(&self, f: impl BlockClosure<BlockSize = Self::BlockSize>) {
+    fn decrypt_with_backend(&self, f: impl BlockCipherDecClosure<BlockSize = Self::BlockSize>) {
         let mut backend: RC6DecBackend<W, R, B> = RC6DecBackend {
             enc_dec: self,
         };
@@ -297,17 +297,6 @@ where
     type BlockSize = BlockSize<W>;
 }
 
-impl<'a, W: Word, R: ArraySize, B: ArraySize> BlockBackend for RC6DecBackend<'a, W, R, B>
-where
-    BlockSize<W>: BlockSizes,
-    R: Mul<U2>,
-    Prod<R, U2>: Add<U4>,
-    ExpandedKeyTableSize<R>: ArraySize,
-{
-    fn proc_block(&mut self, block: InOut<'_, '_, Block<Self>>) {
-        self.enc_dec.decrypt(block)
-    }
-}
 
 pub trait Word:
     Shl<Output = Self>
