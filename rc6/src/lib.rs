@@ -142,6 +142,17 @@ where
 {
     type BlockSize = BlockSize<W>;
 }
+
+impl<W: Word, R: ArraySize, B: ArraySize> ParBlocksSizeUser for RC6< W, R, B>
+where
+    BlockSize<W>: BlockSizes,
+    R: Mul<U2>,
+    Prod<R, U2>: Add<U4>,
+    ExpandedKeyTableSize<R>: ArraySize,
+{
+    type ParBlocksSize = U1;
+}
+
 impl<W: Word, R: ArraySize, B: ArraySize> KeyInit for RC6<W, R, B>
 where
     BlockSize<W>: BlockSizes,
@@ -179,62 +190,31 @@ where
     ExpandedKeyTableSize<R>: ArraySize,
 {
     fn encrypt_with_backend(&self, f: impl BlockCipherEncClosure<BlockSize = Self::BlockSize>) {
-        let mut backend: RC6EncBackend<W, R, B> = RC6EncBackend { enc_dec: self };
-        f.call(&mut backend)
+        f.call(self)
     }
 }
 
-struct RC6EncBackend<'a, W: Word, R: ArraySize, B: ArraySize>
+impl<W: Word, R: ArraySize, B: ArraySize> BlockCipherEncBackend for RC6<W, R, B>
 where
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
 {
-    enc_dec: &'a RC6<W, R, B>,
-}
-
-impl<'a, W: Word, R: ArraySize, B: ArraySize> ParBlocksSizeUser for RC6EncBackend<'a, W, R, B>
-where
-    BlockSize<W>: BlockSizes,
-    R: Mul<U2>,
-    Prod<R, U2>: Add<U4>,
-    ExpandedKeyTableSize<R>: ArraySize,
-{
-    type ParBlocksSize = U1;
-}
-
-impl<'a, W: Word, R: ArraySize, B: ArraySize> BlockSizeUser for RC6EncBackend<'a, W, R, B>
-where
-    BlockSize<W>: BlockSizes,
-    R: Mul<U2>,
-    Prod<R, U2>: Add<U4>,
-    ExpandedKeyTableSize<R>: ArraySize,
-{
-    type BlockSize = BlockSize<W>;
-}
-
-impl<'a, W: Word, R: ArraySize, B: ArraySize> BlockCipherEncBackend for RC6EncBackend<'_, W, R, B>
-where
-    BlockSize<W>: BlockSizes,
-    R: Mul<U2>,
-    Prod<R, U2>: Add<U4>,
-    ExpandedKeyTableSize<R>: ArraySize,
-{
-    fn encrypt_block(&self, block: InOut<'_, '_, Block<Self>>) {
-        self.enc_dec.encrypt(block)
+    fn encrypt_block(&self, mut block: InOut<'_, '_, Block<Self>>) {
+        self.encrypt(block)
     }
 }
 
-impl<'a, W: Word, R: ArraySize, B: ArraySize> BlockCipherDecBackend for RC6DecBackend<'a, W, R, B>
+impl<W: Word, R: ArraySize, B: ArraySize> BlockCipherDecBackend for RC6<W, R, B>
 where
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
 {
-    fn decrypt_block(&self, block: InOut<'_, '_, Block<Self>>) {
-        self.enc_dec.decrypt(block)
+    fn decrypt_block(&self, mut block: InOut<'_, '_, Block<Self>>) {
+        self.decrypt(block)
     }
 }
 
@@ -246,40 +226,10 @@ where
     ExpandedKeyTableSize<R>: ArraySize,
 {
     fn decrypt_with_backend(&self, f: impl BlockCipherDecClosure<BlockSize = Self::BlockSize>) {
-        let mut backend: RC6DecBackend<W, R, B> = RC6DecBackend { enc_dec: self };
-        f.call(&mut backend)
+        f.call(self)
     }
 }
 
-struct RC6DecBackend<'a, W: Word, R: ArraySize, B: ArraySize>
-where
-    BlockSize<W>: BlockSizes,
-    R: Mul<U2>,
-    Prod<R, U2>: Add<U4>,
-    ExpandedKeyTableSize<R>: ArraySize,
-{
-    enc_dec: &'a RC6<W, R, B>,
-}
-
-impl<'a, W: Word, R: ArraySize, B: ArraySize> ParBlocksSizeUser for RC6DecBackend<'a, W, R, B>
-where
-    BlockSize<W>: BlockSizes,
-    R: Mul<U2>,
-    Prod<R, U2>: Add<U4>,
-    ExpandedKeyTableSize<R>: ArraySize,
-{
-    type ParBlocksSize = U1;
-}
-
-impl<'a, W: Word, R: ArraySize, B: ArraySize> BlockSizeUser for RC6DecBackend<'a, W, R, B>
-where
-    BlockSize<W>: BlockSizes,
-    R: Mul<U2>,
-    Prod<R, U2>: Add<U4>,
-    ExpandedKeyTableSize<R>: ArraySize,
-{
-    type BlockSize = BlockSize<W>;
-}
 
 fn key_expansion<W: Word, R: ArraySize, B: ArraySize>(key: &Array<u8, B>) -> ExpandedKeyTable<W, R>
 where
