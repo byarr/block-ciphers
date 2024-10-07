@@ -1,33 +1,29 @@
 #![no_std]
 
+mod primitives;
+use primitives::Word;
+
 extern crate alloc;
 
 use alloc::vec;
 use alloc::vec::Vec;
 use cipher::array::Array;
-use cipher::consts::{U1, U2, U4, U8};
+use cipher::consts::{U1, U2, U4};
 use cipher::inout::InOut;
 
-use cipher::{array::ArraySize, typenum::Unsigned, AlgorithmName, Block, BlockCipherEncBackend, BlockCipherDecrypt, BlockCipherEncrypt, BlockCipherDecClosure, BlockSizeUser, Key, KeyInit, KeySizeUser, ParBlocksSizeUser, BlockCipherEncClosure, BlockCipherDecBackend};
+use cipher::{
+    array::ArraySize, typenum::Unsigned, AlgorithmName, Block, BlockCipherDecBackend,
+    BlockCipherDecClosure, BlockCipherDecrypt, BlockCipherEncBackend, BlockCipherEncClosure,
+    BlockCipherEncrypt, BlockSizeUser, Key, KeyInit, KeySizeUser, ParBlocksSizeUser,
+};
 use core::cmp::max;
 use core::fmt::Formatter;
 use core::marker::PhantomData;
 
+use crate::primitives::{BlockSize, ExpandedKeyTable, ExpandedKeyTableSize};
 use cipher::crypto_common::BlockSizes;
-use cipher::typenum::{Prod, Sum};
-use cipher::zeroize::DefaultIsZeroes;
-use core::ops::{Add, BitAnd, BitOr, BitXor, Mul, Shl};
-
-// for r rounds we need 2 * r + 4 e.g. 20 rounds is 44 round keys
-pub type ExpandedKeyTableSize<R> = Sum<Prod<R, U2>, U4>;
-pub type ExpandedKeyTable<W, R> = Array<W, ExpandedKeyTableSize<R>>;
-
-pub type BlockSize<W> = Prod<<W as Word>::Bytes, U4>;
-
-// This should be parameterised but hard code for now
-// W - word size (bits) - 32
-// R - number of rounds - 20
-// B - key length in bytes - 16
+use cipher::typenum::Prod;
+use core::ops::{Add, Mul};
 
 pub struct RC6<W: Word, R: ArraySize, B: ArraySize>
 where
@@ -40,14 +36,13 @@ where
     key_size: PhantomData<B>,
 }
 
- impl <W: Word, R: ArraySize, B: ArraySize> RC6<W, R, B>
-    where
-        BlockSize<W>: BlockSizes,
-        R: Mul<U2>,
-        Prod<R, U2>: Add<U4>,
-        ExpandedKeyTableSize<R>: ArraySize,
+impl<W: Word, R: ArraySize, B: ArraySize> RC6<W, R, B>
+where
+    BlockSize<W>: BlockSizes,
+    R: Mul<U2>,
+    Prod<R, U2>: Add<U4>,
+    ExpandedKeyTableSize<R>: ArraySize,
 {
-
     pub fn encrypt(&self, mut block: InOut<'_, '_, Block<Self>>) {
         let w_bytes = W::Bytes::to_usize();
         let mut a = W::from_le_bytes(block.get_in()[..w_bytes].try_into().unwrap());
@@ -65,9 +60,7 @@ where
                 .wrapping_mul(d.wrapping_mul(2.into()).wrapping_add(1.into()))
                 .rotate_left(W::LG_W);
 
-            a = (a.bitxor(t))
-                .rotate_left(u)
-                .wrapping_add(self.key[2 * i]);
+            a = (a.bitxor(t)).rotate_left(u).wrapping_add(self.key[2 * i]);
             c = (c.bitxor(u))
                 .rotate_left(t)
                 .wrapping_add(self.key[2 * i + 1]);
@@ -117,10 +110,7 @@ where
                 .wrapping_sub(self.key[2 * i + 1])
                 .rotate_right(t)
                 .bitxor(u);
-            a = a
-                .wrapping_sub(self.key[2 * i])
-                .rotate_right(u)
-                .bitxor(t);
+            a = a.wrapping_sub(self.key[2 * i]).rotate_right(u).bitxor(t);
         }
 
         d = d.wrapping_sub(self.key[1]);
@@ -131,7 +121,6 @@ where
         block.get_out()[2 * w_bytes..3 * w_bytes].copy_from_slice(&c.to_le_bytes());
         block.get_out()[3 * w_bytes..].copy_from_slice(&d.to_le_bytes());
     }
-
 }
 
 impl<W: Word, R: ArraySize, B: ArraySize> KeySizeUser for RC6<W, R, B>
@@ -190,9 +179,7 @@ where
     ExpandedKeyTableSize<R>: ArraySize,
 {
     fn encrypt_with_backend(&self, f: impl BlockCipherEncClosure<BlockSize = Self::BlockSize>) {
-        let mut backend: RC6EncBackend<W, R, B> = RC6EncBackend {
-            enc_dec: self,
-        };
+        let mut backend: RC6EncBackend<W, R, B> = RC6EncBackend { enc_dec: self };
         f.call(&mut backend)
     }
 }
@@ -227,8 +214,7 @@ where
     type BlockSize = BlockSize<W>;
 }
 
-
-impl <'a, W: Word, R: ArraySize, B: ArraySize> BlockCipherEncBackend for RC6EncBackend<'_, W, R, B>
+impl<'a, W: Word, R: ArraySize, B: ArraySize> BlockCipherEncBackend for RC6EncBackend<'_, W, R, B>
 where
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
@@ -240,14 +226,14 @@ where
     }
 }
 
-impl <'a, W: Word, R: ArraySize, B: ArraySize> BlockCipherDecBackend for RC6DecBackend<'a, W, R, B>
+impl<'a, W: Word, R: ArraySize, B: ArraySize> BlockCipherDecBackend for RC6DecBackend<'a, W, R, B>
 where
     BlockSize<W>: BlockSizes,
     R: Mul<U2>,
     Prod<R, U2>: Add<U4>,
     ExpandedKeyTableSize<R>: ArraySize,
 {
-    fn decrypt_block(&self,  block: InOut<'_, '_, Block<Self>>) {
+    fn decrypt_block(&self, block: InOut<'_, '_, Block<Self>>) {
         self.enc_dec.decrypt(block)
     }
 }
@@ -260,9 +246,7 @@ where
     ExpandedKeyTableSize<R>: ArraySize,
 {
     fn decrypt_with_backend(&self, f: impl BlockCipherDecClosure<BlockSize = Self::BlockSize>) {
-        let mut backend: RC6DecBackend<W, R, B> = RC6DecBackend {
-            enc_dec: self,
-        };
+        let mut backend: RC6DecBackend<W, R, B> = RC6DecBackend { enc_dec: self };
         f.call(&mut backend)
     }
 }
@@ -296,89 +280,6 @@ where
 {
     type BlockSize = BlockSize<W>;
 }
-
-
-pub trait Word:
-    Shl<Output = Self>
-    + From<u8>
-    + BitOr<Self, Output = Self>
-    + BitXor<Self, Output = Self>
-    + BitAnd<Self, Output = Self>
-    + DefaultIsZeroes
-{
-    type Bytes: ArraySize + Mul<U4>;
-    const P: Self;
-    const Q: Self;
-
-    const BITS: u32;
-
-    const LG_W: Self;
-
-    fn wrapping_add(self, rhs: Self) -> Self;
-    fn wrapping_sub(self, rhs: Self) -> Self;
-
-    fn wrapping_mul(self, rhs: Self) -> Self;
-    fn rotate_left(self, rhs: Self) -> Self;
-    fn rotate_right(self, rhs: Self) -> Self;
-    fn from_le_bytes(bytes: &Array<u8, Self::Bytes>) -> Self;
-    fn to_le_bytes(self) -> Array<u8, Self::Bytes>;
-}
-
-macro_rules! impl_word_for_primitive {
-    ($primitive:ident, $bytes:ty, $P:expr, $Q:expr) => {
-        impl Word for $primitive {
-            type Bytes = $bytes;
-            const P: Self = $P;
-            const Q: Self = $Q;
-
-            const BITS: u32 = $primitive::BITS;
-
-            const LG_W: Self = $primitive::BITS.ilog2() as $primitive;
-
-            #[inline(always)]
-            fn wrapping_add(self, rhs: Self) -> Self {
-                $primitive::wrapping_add(self, rhs)
-            }
-
-            #[inline(always)]
-            fn wrapping_sub(self, rhs: Self) -> Self {
-                $primitive::wrapping_sub(self, rhs)
-            }
-
-            #[inline(always)]
-            fn wrapping_mul(self, rhs: Self) -> Self {
-                $primitive::wrapping_mul(self, rhs)
-            }
-
-            #[inline(always)]
-            fn rotate_left(self, rhs: Self) -> Self {
-                let mask = (1 << (Self::LG_W)) - 1;
-                $primitive::rotate_left(self, rhs.bitand(mask) as u32)
-            }
-
-            #[inline(always)]
-            fn rotate_right(self, rhs: Self) -> Self {
-                let mask = (1 << (Self::LG_W)) - 1;
-                $primitive::rotate_right(self, rhs.bitand(mask) as u32)
-            }
-
-            #[inline(always)]
-            fn from_le_bytes(bytes: &Array<u8, Self::Bytes>) -> Self {
-                $primitive::from_le_bytes(bytes.as_slice().try_into().unwrap())
-            }
-
-            #[inline(always)]
-            fn to_le_bytes(self) -> Array<u8, Self::Bytes> {
-                $primitive::to_le_bytes(self).into()
-            }
-        }
-    };
-}
-
-impl_word_for_primitive!(u8, U1, 0xB7, 0x9F);
-impl_word_for_primitive!(u16, U2, 0xB7E1, 0x9E37);
-impl_word_for_primitive!(u32, U4, 0xB7E15163, 0x9E3779B9);
-impl_word_for_primitive!(u64, U8, 0xb7e151628aed2a6b, 0x9e3779b97f4a7c15);
 
 fn key_expansion<W: Word, R: ArraySize, B: ArraySize>(key: &Array<u8, B>) -> ExpandedKeyTable<W, R>
 where
