@@ -13,7 +13,7 @@ macro_rules! rc6_test_case {
             let plain_text = hex!($plain);
             let key = hex!($key);
             let cipher = hex!($cipher);
-            let mut block = *Array::from_slice(&plain_text);
+            let mut block = Array::from(plain_text);
 
             let rc6 = <RC6<$word, $rounds, $key_size> as KeyInit>::new_from_slice(&key).unwrap();
             rc6.encrypt_block(&mut block);
