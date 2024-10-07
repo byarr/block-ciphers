@@ -45,7 +45,7 @@ macro_rules! impl_word_for_primitive {
 
             const BITS: u32 = $primitive::BITS;
 
-            const LG_W: Self = $primitive::BITS.ilog2() as $primitive;
+            const LG_W: Self = $primitive::BITS.trailing_zeros() as $primitive;
 
             #[inline(always)]
             fn wrapping_add(self, rhs: Self) -> Self {
