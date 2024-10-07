@@ -36,6 +36,59 @@ where
     key_size: PhantomData<B>,
 }
 
+impl <W: Word, R: ArraySize, B: ArraySize> RC6<W, R, B>
+where
+    BlockSize<W>: BlockSizes,
+    R: Mul<U2>,
+    Prod<R, U2>: Add<U4>,
+    ExpandedKeyTableSize<R>: ArraySize,
+{
+    fn key_expansion(key: &Array<u8, B>) -> ExpandedKeyTable<W, R>
+    where
+        BlockSize<W>: BlockSizes,
+        R: Mul<U2>,
+        Prod<R, U2>: Add<U4>,
+        ExpandedKeyTableSize<R>: ArraySize,
+    {
+        // b bytes into c words
+        let bytes_per_word = W::Bytes::to_usize();
+        let c = (B::to_usize() + bytes_per_word - 1) / bytes_per_word;
+
+        let b = B::to_usize();
+
+        let mut l: Vec<W> = vec![W::default(); c];
+        for i in (0..b).rev() {
+            l[i / bytes_per_word] = (l[i / bytes_per_word].rotate_left(8.into())) | (W::from(key[i]));
+        }
+
+        let mut s: ExpandedKeyTable<W, R> = Array::from_fn(|_| W::default());
+        s[0] = W::P;
+
+        for i in 1..s.len() {
+            s[i] = s[i - 1].wrapping_add(W::Q);
+        }
+
+        let mut a = W::default();
+        let mut b = W::default();
+        let mut i = 0;
+        let mut j = 0;
+
+        let v = 3 * max(c, s.len());
+        for _s in 1..=v {
+            a = s[i].wrapping_add(a).wrapping_add(b).rotate_left(3.into());
+            s[i] = a;
+            b = (l[j].wrapping_add(a).wrapping_add(b)).rotate_left(a.wrapping_add(b));
+            l[j] = b;
+            i = (i + 1) % (s.len());
+            j = (j + 1) % c;
+        }
+
+        s
+    }
+
+
+}
+
 impl<W: Word, R: ArraySize, B: ArraySize> KeySizeUser for RC6<W, R, B>
 where
     BlockSize<W>: BlockSizes,
@@ -75,7 +128,7 @@ where
 {
     #[inline]
     fn new(key: &Key<Self>) -> Self {
-        let expanded_key = key_expansion::<W, R, B>(key);
+        let expanded_key = Self::key_expansion(key);
         Self {
             key: expanded_key,
             key_size: PhantomData,
@@ -212,47 +265,4 @@ where
     fn decrypt_with_backend(&self, f: impl BlockCipherDecClosure<BlockSize = Self::BlockSize>) {
         f.call(self)
     }
-}
-
-fn key_expansion<W: Word, R: ArraySize, B: ArraySize>(key: &Array<u8, B>) -> ExpandedKeyTable<W, R>
-where
-    BlockSize<W>: BlockSizes,
-    R: Mul<U2>,
-    Prod<R, U2>: Add<U4>,
-    ExpandedKeyTableSize<R>: ArraySize,
-{
-    // b bytes into c words
-    let bytes_per_word = W::Bytes::to_usize();
-    let c = (B::to_usize() + bytes_per_word - 1) / bytes_per_word;
-
-    let b = B::to_usize();
-
-    let mut l: Vec<W> = vec![W::default(); c];
-    for i in (0..b).rev() {
-        l[i / bytes_per_word] = (l[i / bytes_per_word].rotate_left(8.into())) | (W::from(key[i]));
-    }
-
-    let mut s: ExpandedKeyTable<W, R> = Array::from_fn(|_| W::default());
-    s[0] = W::P;
-
-    for i in 1..s.len() {
-        s[i] = s[i - 1].wrapping_add(W::Q);
-    }
-
-    let mut a = W::default();
-    let mut b = W::default();
-    let mut i = 0;
-    let mut j = 0;
-
-    let v = 3 * max(c, s.len());
-    for _s in 1..=v {
-        a = s[i].wrapping_add(a).wrapping_add(b).rotate_left(3.into());
-        s[i] = a;
-        b = (l[j].wrapping_add(a).wrapping_add(b)).rotate_left(a.wrapping_add(b));
-        l[j] = b;
-        i = (i + 1) % (s.len());
-        j = (j + 1) % c;
-    }
-
-    s
 }
